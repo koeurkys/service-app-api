@@ -1,25 +1,29 @@
 import { neon } from "@neondatabase/serverless";
-import "dotenv/config";
-import { readFileSync } from "fs";
-import { join } from "path";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import dotenv from "dotenv";
 
-// Creates a SQL connection using our DB URL
+dotenv.config();
+
 export const sql = neon(process.env.DATABASE_URL);
 
 export async function initDB() {
   try {
-    // Path to schema.sql
-    const schemaPath = join(process.cwd(), "backend", "database", "schema.sql");
+    // Récupérer le chemin réel du fichier db.js
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
 
-    // Read the SQL file content
-    const schema = readFileSync(schemaPath, "utf8");
+    // Remonter jusqu'à /backend puis aller vers /database/schema.sql
+    const schemaPath = path.join(__dirname, "..", "..", "database", "schema.sql");
 
-    // Execute the full SQL schema
-    await sql`${schema}`;
+    const schema = fs.readFileSync(schemaPath, "utf8");
+
+    await sql.unsafe(schema);
 
     console.log("Database initialized successfully");
   } catch (error) {
     console.log("Error initializing DB", error);
-    process.exit(1); // status code 1 means failure, 0 success
+    process.exit(1);
   }
 }

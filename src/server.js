@@ -3,9 +3,11 @@ dotenv.config();
 
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import compression from "compression";
+
 import { initDB } from "./config/db.js";
 import rateLimiter from "./middleware/rateLimiter.js";
-
 import { clerkMiddleware } from "@clerk/express";
 import { syncUser } from "./middleware/syncUser.js";
 
@@ -26,66 +28,91 @@ import job from "./config/cron.js";
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// 📌 Lancer le cron uniquement en production
-if (process.env.NODE_ENV === "production") job.start();
-
-// Middleware global
+/**
+ * =======================
+ *  Middlewares globaux
+ * =======================
+ */
 app.use(cors());
-app.use(rateLimiter);
-app.use(express.json());
+app.use(helmet());          // sécurité headers
+app.use(compression());     // gzip
+app.use(express.json());    // body parser JSON
 
-// --- LOG KEYS ---
+// Log clé Clerk (utile pour debug)
 console.log("CLERK_SECRET_KEY:", !!process.env.CLERK_SECRET_KEY);
 console.log("CLERK_PUBLISHABLE_KEY:", !!process.env.CLERK_PUBLISHABLE_KEY);
 
-// =======================
-// ROUTES PUBLIQUES
-// =======================
+/**
+ * =======================
+ *  Cron job (prod only)
+ * =======================
+ */
+if (process.env.NODE_ENV === "production") {
+  job.start();
+}
 
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ status: "ok" });
-});
+/**
+ * =======================
+ *  Routes publiques
+ * =======================
+ */
+app.get("/api/health", (req, res) => res.status(200).json({ status: "ok" }));
+app.get("/api/test", (req, res) => res.json({ message: "API OK" }));
 
-// Route de test (SANS Clerk)
-app.get("/api/test", (req, res) => {
-  res.json({ message: "API OK" });
-});
+/**
+ * =======================
+ *  Middlewares protégés (utilisés par toutes les routes privées)
+ * =======================
+ */
+const protectedMiddlewares = [
+  rateLimiter,
+  clerkMiddleware(),
+  syncUser
+];
 
-// =======================
-// ROUTES PROTÉGÉES
-// =======================
-
-// Route / (avec Clerk)
-app.get("/api", clerkMiddleware(), syncUser, (req, res) => {
+/**
+ * =======================
+ *  Routes protégées
+ * =======================
+ */
+app.get("/api", protectedMiddlewares, (req, res) => {
+  console.log("➡️ /api called", req.auth);
   res.json({ userId: req.auth.userId });
 });
 
-// Routes protégées (avec Clerk + syncUser)
-app.use("/api/users", clerkMiddleware(), syncUser, usersRoute);
-app.use("/api/categories", clerkMiddleware(), syncUser, categoriesRoute);
-app.use("/api/profiles", clerkMiddleware(), syncUser, profilesRoute);
-app.use("/api/services", clerkMiddleware(), syncUser, servicesRoute);
-app.use("/api/bookings", clerkMiddleware(), syncUser, bookingsRoute);
-app.use("/api/reviews", clerkMiddleware(), syncUser, reviewsRoute);
-app.use("/api/badges", clerkMiddleware(), syncUser, badgesRoute);
-app.use("/api/user-badges", clerkMiddleware(), syncUser, userBadgesRoute);
-app.use("/api/category-xp", clerkMiddleware(), syncUser, categoryXpRoute);
-app.use("/api/challenges", clerkMiddleware(), syncUser, challengesRoute);
-app.use("/api/user-challenges", clerkMiddleware(), syncUser, userChallengesRoute);
+app.use("/api/users", protectedMiddlewares, usersRoute);
+app.use("/api/categories", protectedMiddlewares, categoriesRoute);
+app.use("/api/profiles", protectedMiddlewares, profilesRoute);
+app.use("/api/services", protectedMiddlewares, servicesRoute);
+app.use("/api/bookings", protectedMiddlewares, bookingsRoute);
+app.use("/api/reviews", protectedMiddlewares, reviewsRoute);
+app.use("/api/badges", protectedMiddlewares, badgesRoute);
+app.use("/api/user-badges", protectedMiddlewares, userBadgesRoute);
+app.use("/api/category-xp", protectedMiddlewares, categoryXpRoute);
+app.use("/api/challenges", protectedMiddlewares, challengesRoute);
+app.use("/api/user-challenges", protectedMiddlewares, userChallengesRoute);
 
-// =======================
-// ERROR HANDLER
-// =======================
-
+/**
+ * =======================
+ *  Error handler
+ * =======================
+ */
 app.use((err, req, res, next) => {
   console.error("❌ SERVER ERROR:", err);
+
+  // plus précis si c'est un problème de Clerk ou autre
+  if (err?.statusCode) {
+    return res.status(err.statusCode).json({ message: err.message });
+  }
+
   res.status(500).json({ message: "Internal Server Error" });
 });
 
-// =======================
-// START SERVER
-// =======================
-
+/**
+ * =======================
+ *  Start server
+ * =======================
+ */
 async function startServer() {
   await initDB();
   app.listen(PORT, () => {

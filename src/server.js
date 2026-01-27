@@ -24,14 +24,15 @@ import userChallengesRoute from "./routes/userChallengesRoute.js";
 import job from "./config/cron.js";
 
 const app = express();
+const PORT = process.env.PORT || 5001;
 
+// 📌 Lancer le cron uniquement en production
 if (process.env.NODE_ENV === "production") job.start();
 
+// Middleware global
 app.use(cors());
 app.use(rateLimiter);
 app.use(express.json());
-
-const PORT = process.env.PORT || 5001;
 
 // --- LOG KEYS ---
 console.log("CLERK_SECRET_KEY:", !!process.env.CLERK_SECRET_KEY);
@@ -73,11 +74,26 @@ app.use("/api/challenges", clerkMiddleware(), syncUser, challengesRoute);
 app.use("/api/user-challenges", clerkMiddleware(), syncUser, userChallengesRoute);
 
 // =======================
+// ERROR HANDLER
+// =======================
+
+app.use((err, req, res, next) => {
+  console.error("❌ SERVER ERROR:", err);
+  res.status(500).json({ message: "Internal Server Error" });
+});
+
+// =======================
 // START SERVER
 // =======================
 
-initDB().then(() => {
+async function startServer() {
+  await initDB();
   app.listen(PORT, () => {
     console.log("🚀 Server running on PORT:", PORT);
   });
+}
+
+startServer().catch((err) => {
+  console.error("❌ Failed to start server:", err);
+  process.exit(1);
 });

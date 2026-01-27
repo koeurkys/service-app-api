@@ -54,8 +54,8 @@ app.get("/api/test", (req, res) => {
 // ROUTES PROTÉGÉES
 // =======================
 
-// Route "me" (avec Clerk)
-app.get("/api/me", clerkMiddleware(), syncUser, (req, res) => {
+// Route / (avec Clerk)
+app.get("/api", clerkMiddleware(), syncUser, (req, res) => {
   res.json({ userId: req.auth.userId });
 });
 

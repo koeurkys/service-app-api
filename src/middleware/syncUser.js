@@ -41,7 +41,9 @@ export async function syncUser(req, res, next) {
           name,
           avatar_url,
           role,
-          is_verified
+          is_verified,
+          created_at,
+          updated_at
         )
         VALUES (
           ${clerkId},
@@ -49,7 +51,9 @@ export async function syncUser(req, res, next) {
           ${name},
           ${avatarUrl},
           'client',
-          true
+          true,
+          NOW(),
+          NOW()
         )
       `;
     } else {
@@ -58,7 +62,8 @@ export async function syncUser(req, res, next) {
         UPDATE users SET
           email = COALESCE(email, ${email}),
           name = COALESCE(name, ${name}),
-          avatar_url = COALESCE(avatar_url, ${avatarUrl})
+          avatar_url = COALESCE(avatar_url, ${avatarUrl}),
+          updated_at = NOW()
         WHERE clerk_id = ${clerkId}
       `;
     }

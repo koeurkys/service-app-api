@@ -3,8 +3,8 @@ import { sql } from "../config/db.js";
 export async function syncUser(req, res, next) {
   console.log("🔵 syncUser called", req.path);
 
-  const clerkUser = req.auth?.userId;
-  console.log("userId:", clerkUser);
+  const clerkId = req.auth?.userId;
+  console.log("userId:", clerkId);
 
   if (!clerkId) {
     return res.status(401).json({ message: "Unauthorized" });
@@ -25,6 +25,7 @@ export async function syncUser(req, res, next) {
 
     const avatarUrl =
       claims.image_url ??
+      claims.picture ??
       null;
 
     const existing = await sql`
@@ -52,7 +53,7 @@ export async function syncUser(req, res, next) {
         )
       `;
     } else {
-      // 🔹 Complétion si NULL
+      // 🔹 Mise à jour si NULL
       await sql`
         UPDATE users SET
           email = COALESCE(email, ${email}),

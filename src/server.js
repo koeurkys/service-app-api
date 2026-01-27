@@ -1,5 +1,7 @@
-import express from "express";
 import dotenv from "dotenv";
+dotenv.config();
+
+import express from "express";
 import cors from "cors";
 import { initDB } from "./config/db.js";
 import rateLimiter from "./middleware/rateLimiter.js";
@@ -21,8 +23,6 @@ import userChallengesRoute from "./routes/userChallengesRoute.js";
 
 import job from "./config/cron.js";
 
-dotenv.config();
-
 const app = express();
 
 if (process.env.NODE_ENV === "production") job.start();
@@ -33,25 +33,33 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 5001;
 
-// Routes publiques
+// --- LOG KEYS ---
+console.log("CLERK_SECRET_KEY:", !!process.env.CLERK_SECRET_KEY);
+console.log("CLERK_PUBLISHABLE_KEY:", !!process.env.CLERK_PUBLISHABLE_KEY);
+
+// =======================
+// ROUTES PUBLIQUES
+// =======================
+
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// Route de test
-app.get("/api/test", clerkMiddleware(), (req, res) => {
-  res.json({
-    auth: req.auth,
-    headers: req.headers,
-  });
+// Route de test (SANS Clerk)
+app.get("/api/test", (req, res) => {
+  res.json({ message: "API OK" });
 });
 
-// Route "me" : déclenche syncUser
+// =======================
+// ROUTES PROTÉGÉES
+// =======================
+
+// Route "me" (avec Clerk)
 app.get("/api/me", clerkMiddleware(), syncUser, (req, res) => {
   res.json({ userId: req.auth.userId });
 });
 
-// Routes protégées (Clerk + syncUser)
+// Routes protégées (avec Clerk + syncUser)
 app.use("/api/users", clerkMiddleware(), syncUser, usersRoute);
 app.use("/api/categories", clerkMiddleware(), syncUser, categoriesRoute);
 app.use("/api/profiles", clerkMiddleware(), syncUser, profilesRoute);
@@ -63,6 +71,10 @@ app.use("/api/user-badges", clerkMiddleware(), syncUser, userBadgesRoute);
 app.use("/api/category-xp", clerkMiddleware(), syncUser, categoryXpRoute);
 app.use("/api/challenges", clerkMiddleware(), syncUser, challengesRoute);
 app.use("/api/user-challenges", clerkMiddleware(), syncUser, userChallengesRoute);
+
+// =======================
+// START SERVER
+// =======================
 
 initDB().then(() => {
   app.listen(PORT, () => {

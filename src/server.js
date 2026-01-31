@@ -40,6 +40,11 @@ await checkUpstash();
 
 
 const app = express();
+
+app.use(express.json()); // 🔥 parse JSON body (OBLIGATOIRE)
+app.use(express.urlencoded({ extended: true }));
+
+
 const PORT = process.env.PORT || 5001;
 
 /**

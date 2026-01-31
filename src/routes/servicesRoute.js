@@ -6,13 +6,15 @@ import {
   updateService,
   deleteService,
 } from "../controllers/servicesController.js";
+import { requireAuth } from "../middleware/auth.js";
+
 
 const router = express.Router();
 
-router.get("/", getServices);
-router.get("/:id", getServiceById);
-router.post("/", createService);
-router.put("/:id", updateService);
-router.delete("/:id", deleteService);
+router.get("/", requireAuth, getServices);
+router.get("/:id", requireAuth, getServiceById);
+router.post("/", requireAuth, createService);
+router.put("/:id", requireAuth, updateService);
+router.delete("/:id", requireAuth, deleteService);
 
 export default router;

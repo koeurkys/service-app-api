@@ -1,19 +1,46 @@
 import { sql } from "../config/db.js";
 
+/* =======================
+   GET ALL SERVICES
+======================= */
 export async function getServices(req, res) {
   try {
-    const services = await sql`SELECT * FROM services ORDER BY created_at DESC`;
+    const services = await sql`
+      SELECT 
+        s.*,
+        c.name AS category_name,
+        u.name AS username
+      FROM services s
+      JOIN categories c ON c.id = s.category_id
+      JOIN users u ON u.id = s.user_id
+      WHERE s.status = 'active'
+      ORDER BY s.created_at DESC
+    `;
+
     res.status(200).json(services);
   } catch (error) {
-    console.log("Error getting services", error);
+    console.error("Error getting services:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
 
+/* =======================
+   GET SERVICE BY ID
+======================= */
 export async function getServiceById(req, res) {
   try {
     const { id } = req.params;
-    const service = await sql`SELECT * FROM services WHERE id = ${id}`;
+
+    const service = await sql`
+      SELECT 
+        s.*,
+        c.name AS category_name,
+        u.name AS username
+      FROM services s
+      JOIN categories c ON c.id = s.category_id
+      JOIN users u ON u.id = s.user_id
+      WHERE s.id = ${id}
+    `;
 
     if (service.length === 0) {
       return res.status(404).json({ message: "Service not found" });
@@ -21,44 +48,96 @@ export async function getServiceById(req, res) {
 
     res.status(200).json(service[0]);
   } catch (error) {
-    console.log("Error getting service", error);
+    console.error("Error getting service:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
 
+/* =======================
+   CREATE SERVICE / DEMANDE
+======================= */
 export async function createService(req, res) {
   try {
     const {
       title,
       description,
       price,
-      category_id,
-      user_id,
+      category, // nom envoyé par le front
+      type = "service",
+      is_hourly = false,
       latitude,
       longitude,
       address,
       city,
       postal_code,
-      status,
     } = req.body;
-
-    if (!title || !description || !price || !category_id || !user_id) {
-      return res.status(400).json({ message: "Missing required fields" });
+    // 🔹 Vérifier les champs minimaux
+    if (!title || !description || !price || !category) {
+      return res.status(400).json({ message: "Missing required fields", received: req.body });
     }
 
+    // 🔹 Récupérer category_id depuis le nom
+    const categoryResult = await sql`
+      SELECT id FROM categories WHERE name = ${category}
+    `;
+    if (categoryResult.length === 0) {
+      return res.status(400).json({ message: "Invalid category", received: req.body });
+    }
+    const category_id = categoryResult[0].id;
+
+    // 🔹 Récupérer l'utilisateur depuis le JWT (req.clerkUserId)
+    const userResult = await sql`
+      SELECT id FROM users WHERE clerk_id = ${req.clerkUserId}
+    `;
+    if (userResult.length === 0) {
+      return res.status(400).json({ message: "User not found", clerkId: req.clerkUserId });
+    }
+    const user_id = userResult[0].id;
+
+    // 🔹 Insérer le service
     const service = await sql`
-      INSERT INTO services(title, description, price, category_id, user_id, latitude, longitude, address, city, postal_code, status)
-      VALUES (${title}, ${description}, ${price}, ${category_id}, ${user_id}, ${latitude}, ${longitude}, ${address}, ${city}, ${postal_code}, ${status})
+      INSERT INTO services (
+        title,
+        description,
+        price,
+        category_id,
+        user_id,
+        type,
+        is_hourly,
+        latitude,
+        longitude,
+        address,
+        city,
+        postal_code
+      )
+      VALUES (
+        ${title},
+        ${description},
+        ${price},
+        ${category_id},
+        ${user_id},
+        ${type},
+        ${is_hourly},
+        ${latitude},
+        ${longitude},
+        ${address},
+        ${city},
+        ${postal_code}
+      )
       RETURNING *
     `;
 
     res.status(201).json(service[0]);
   } catch (error) {
-    console.log("Error creating service", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Error creating service:", error);
+    res.status(500).json({ message: "Internal server error", error: error.message });
   }
 }
 
+
+/* =======================
+   UPDATE SERVICE
+======================= */
 export async function updateService(req, res) {
   try {
     const { id } = req.params;
@@ -67,54 +146,63 @@ export async function updateService(req, res) {
       description,
       price,
       category_id,
+      status,
+      is_hourly,
+      type,
       latitude,
       longitude,
       address,
       city,
       postal_code,
-      status,
     } = req.body;
 
     const updated = await sql`
       UPDATE services
-      SET title = COALESCE(${title}, title),
-          description = COALESCE(${description}, description),
-          price = COALESCE(${price}, price),
-          category_id = COALESCE(${category_id}, category_id),
-          latitude = COALESCE(${latitude}, latitude),
-          longitude = COALESCE(${longitude}, longitude),
-          address = COALESCE(${address}, address),
-          city = COALESCE(${city}, city),
-          postal_code = COALESCE(${postal_code}, postal_code),
-          status = COALESCE(${status}, status),
-          updated_at = CURRENT_TIMESTAMP
+      SET
+        title = COALESCE(${title}, title),
+        description = COALESCE(${description}, description),
+        price = COALESCE(${price}, price),
+        category_id = COALESCE(${category_id}, category_id),
+        status = COALESCE(${status}, status),
+        is_hourly = COALESCE(${is_hourly}, is_hourly),
+        type = COALESCE(${type}, type),
+        latitude = COALESCE(${latitude}, latitude),
+        longitude = COALESCE(${longitude}, longitude),
+        address = COALESCE(${address}, address),
+        city = COALESCE(${city}, city),
+        postal_code = COALESCE(${postal_code}, postal_code),
+        updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
       RETURNING *
     `;
 
-    if (updated.length === 0) {
-      return res.status(404).json({ message: "Service not found" });
-    }
+    if (updated.length === 0) return res.status(404).json({ message: "Service not found" });
 
     res.status(200).json(updated[0]);
   } catch (error) {
-    console.log("Error updating service", error);
+    console.error("Error updating service:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
 
+/* =======================
+   DELETE SERVICE
+======================= */
 export async function deleteService(req, res) {
   try {
     const { id } = req.params;
-    const result = await sql`DELETE FROM services WHERE id = ${id} RETURNING *`;
 
-    if (result.length === 0) {
-      return res.status(404).json({ message: "Service not found" });
-    }
+    const deleted = await sql`
+      DELETE FROM services
+      WHERE id = ${id}
+      RETURNING *
+    `;
+
+    if (deleted.length === 0) return res.status(404).json({ message: "Service not found" });
 
     res.status(200).json({ message: "Service deleted successfully" });
   } catch (error) {
-    console.log("Error deleting service", error);
+    console.error("Error deleting service:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }

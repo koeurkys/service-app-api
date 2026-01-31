@@ -3,10 +3,14 @@ import { sql } from "../config/db.js";
 
 const router = express.Router();
 
-router.get("/:clerkId", async (req, res) => {
-  const { clerkId } = req.params;
-
+router.get("/me", async (req, res) => {
   try {
+    const clerkId = req.auth?.userId;
+
+    if (!clerkId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     // 1️⃣ récupérer l'utilisateur
     const [user] = await sql`
       SELECT id

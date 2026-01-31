@@ -10,16 +10,13 @@ const rateLimiter = async (req, res, next) => {
       });
     }
 
-    next();
+    return next();
   } catch (error) {
-    // Si Upstash renvoie du HTML (ex: 404 page), on ne doit pas crash le serveur
-    console.log("Rate limit error", error);
+    // 🔥 IMPORTANT: ne pas crash l'API
+    console.log("Rate limit error (fallback ON):", error?.message ?? error);
 
-    // On n’envoie pas d’erreur pour éviter les problèmes de body-parser
-    // mais on peut tout de même répondre un message propre
-    return res.status(503).json({
-      message: "Rate limiter unavailable. Try again later.",
-    });
+    // Fallback: on autorise la requête
+    return next();
   }
 };
 

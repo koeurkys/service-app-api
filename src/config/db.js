@@ -87,7 +87,9 @@ export async function initDB() {
         average_rating DECIMAL(3,2) DEFAULT 0.00,
         total_bookings INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        type VARCHAR(20) CHECK (type IN ('service', 'demande')) NOT NULL DEFAULT 'service',
+        is_hourly BOOLEAN DEFAULT false
       )
     `;
 

@@ -24,27 +24,39 @@ import challengesRoute from "./routes/challengesRoute.js";
 import userChallengesRoute from "./routes/userChallengesRoute.js";
 
 import job from "./config/cron.js";
+import { Redis } from "@upstash/redis";
+
+async function checkUpstash() {
+  try {
+    const redis = Redis.fromEnv();
+    await redis.ping();
+    console.log("✅ Upstash OK");
+  } catch (err) {
+    console.error("❌ Upstash error:", err.message);
+  }
+}
+
+await checkUpstash();
+
 
 const app = express();
 const PORT = process.env.PORT || 5001;
 
 /**
  * =======================
- *  Middlewares globaux
+ * Middlewares globaux
  * =======================
  */
-app.use(cors());
-app.use(helmet());          // sécurité headers
-app.use(compression());     // gzip
-app.use(express.json());    // body parser JSON
+app.set("trust proxy", 1);   // utile sur Render / Heroku
 
-// Log clé Clerk (utile pour debug)
-console.log("CLERK_SECRET_KEY:", !!process.env.CLERK_SECRET_KEY);
-console.log("CLERK_PUBLISHABLE_KEY:", !!process.env.CLERK_PUBLISHABLE_KEY);
+app.use(cors());
+app.use(helmet());
+app.use(compression());
+
 
 /**
  * =======================
- *  Cron job (prod only)
+ * Cron job (prod only)
  * =======================
  */
 if (process.env.NODE_ENV === "production") {
@@ -53,7 +65,20 @@ if (process.env.NODE_ENV === "production") {
 
 /**
  * =======================
- *  Routes publiques
+ * Logs clés
+ * =======================
+ */
+console.log("CLERK_SECRET_KEY:", !!process.env.CLERK_SECRET_KEY);
+console.log("CLERK_PUBLISHABLE_KEY:", !!process.env.CLERK_PUBLISHABLE_KEY);
+console.log("UPSTASH_REDIS_REST_URL", process.env.UPSTASH_REDIS_REST_URL);
+console.log(
+  "UPSTASH_REDIS_REST_TOKEN",
+  process.env.UPSTASH_REDIS_REST_TOKEN?.slice(0, 4) + "..."
+);
+
+/**
+ * =======================
+ * Routes publiques
  * =======================
  */
 app.get("/api/health", (req, res) => res.status(200).json({ status: "ok" }));
@@ -61,18 +86,14 @@ app.get("/api/test", (req, res) => res.json({ message: "API OK" }));
 
 /**
  * =======================
- *  Middlewares protégés (utilisés par toutes les routes privées)
+ * Middlewares protégés
  * =======================
  */
-const protectedMiddlewares = [
-  rateLimiter,
-  clerkMiddleware(),
-  syncUser
-];
+const protectedMiddlewares = [rateLimiter, clerkMiddleware(), syncUser];
 
 /**
  * =======================
- *  Routes protégées
+ * Routes protégées
  * =======================
  */
 app.get("/api", protectedMiddlewares, (req, res) => {
@@ -94,13 +115,12 @@ app.use("/api/user-challenges", protectedMiddlewares, userChallengesRoute);
 
 /**
  * =======================
- *  Error handler
+ * Error handler
  * =======================
  */
 app.use((err, req, res, next) => {
   console.error("❌ SERVER ERROR:", err);
 
-  // plus précis si c'est un problème de Clerk ou autre
   if (err?.statusCode) {
     return res.status(err.statusCode).json({ message: err.message });
   }
@@ -110,7 +130,7 @@ app.use((err, req, res, next) => {
 
 /**
  * =======================
- *  Start server
+ * Start server
  * =======================
  */
 async function startServer() {

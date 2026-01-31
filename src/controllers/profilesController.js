@@ -10,7 +10,6 @@ export async function getProfileByUserId(req, res) {
       FROM users
       WHERE id = ${userId}
     `;
-
     if (user.length === 0) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -22,7 +21,15 @@ export async function getProfileByUserId(req, res) {
       WHERE user_id = ${userId}
     `;
 
-    // 3) XP per category
+    // 3) Services publiés par l'utilisateur
+    const services = await sql`
+      SELECT s.id, s.title, s.description, s.price, s.is_hourly, s.type, s.category AS category_name, s.status, s.created_at
+      FROM services s
+      WHERE s.user_id = ${userId}
+      ORDER BY s.created_at DESC
+    `;
+
+    // 4) XP per category
     const categoryXp = await sql`
       SELECT cx.category_id, c.name AS category_name, cx.xp
       FROM category_xp cx
@@ -31,7 +38,7 @@ export async function getProfileByUserId(req, res) {
       ORDER BY cx.xp DESC
     `;
 
-    // 4) Badges
+    // 5) Badges
     const badges = await sql`
       SELECT b.id, b.name, b.icon, b.description
       FROM user_badges ub
@@ -40,11 +47,13 @@ export async function getProfileByUserId(req, res) {
       ORDER BY ub.earned_at DESC
     `;
 
+    // ✅ Retour JSON complet
     return res.status(200).json({
       user: user[0],
       profile: profile[0] || null,
+      services,          // <- ici on renvoie les services
       category_xp: categoryXp,
-      badges: badges,
+      badges,
     });
   } catch (error) {
     console.log("Error getting profile", error);

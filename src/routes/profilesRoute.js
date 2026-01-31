@@ -44,7 +44,7 @@ router.get("/me", async (req, res) => {
         s.title,
         c.name AS category,
         s.price AS price_per_hour,
-        s.average_rating AS rating,
+        s.average_rating::float AS rating,
         s.total_bookings AS reviews_count,
         s.status,
         s.created_at,

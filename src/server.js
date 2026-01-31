@@ -26,6 +26,8 @@ import userBadgesRoute from "./routes/userBadgesRoute.js";
 import categoryXpRoute from "./routes/categoryXpRoute.js";
 import challengesRoute from "./routes/challengesRoute.js";
 import userChallengesRoute from "./routes/userChallengesRoute.js";
+import uploadRoute from "./routes/uploadRoute.js";
+
 
 import job from "./config/cron.js";
 import { Redis } from "@upstash/redis";
@@ -104,25 +106,8 @@ cloudinary.v2.config({
 
 const upload = multer({ dest: "uploads/" });
 
-app.post("/api/upload", protectedMiddlewares, upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+app.use("/api/upload", protectedMiddlewares, uploadRoute); // ✅
 
-    const filePath = path.resolve(req.file.path);
-
-    const result = await cloudinary.v2.uploader.upload(filePath, {
-      folder: "services", // optionnel
-    });
-
-    // Supprime le fichier temporaire
-    fs.unlinkSync(filePath);
-
-    res.json({ url: result.secure_url });
-  } catch (err) {
-    console.error("Cloudinary upload error:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // -------------------- Error Handler --------------------
 app.use((err, req, res, next) => {

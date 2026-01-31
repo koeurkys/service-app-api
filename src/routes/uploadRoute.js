@@ -17,20 +17,14 @@ cloudinary.v2.config({
 // POST /api/upload
 router.post("/", upload.single("file"), async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
-    }
-
-    const filePath = path.resolve(req.file.path);
-    const result = await cloudinary.v2.uploader.upload(filePath, { folder: "services" });
-    fs.unlinkSync(filePath);
-
-
-    // Retourne l'URL
-    return res.json({ url: result.secure_url });
+    const filePath = req.file.path;
+    const result = await cloudinary.v2.uploader.upload(filePath, {
+      folder: "services",
+    });
+    res.json({ url: result.secure_url });
   } catch (err) {
-    console.error("Cloudinary upload error:", err);
-    return res.status(500).json({ error: err.message });
+    console.error("Cloudinary error:", err);
+    res.status(500).json({ error: "Upload failed" });
   }
 });
 

@@ -5,7 +5,11 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
-
+import path from "path";
+import fs from "fs";
+import multer from "multer";
+import { fileURLToPath } from "url";
+import cloudinary from "cloudinary";
 import { initDB } from "./config/db.js";
 import rateLimiter from "./middleware/rateLimiter.js";
 import { clerkMiddleware } from "@clerk/express";
@@ -26,6 +30,7 @@ import userChallengesRoute from "./routes/userChallengesRoute.js";
 import job from "./config/cron.js";
 import { Redis } from "@upstash/redis";
 
+// -------------------- Check Upstash --------------------
 async function checkUpstash() {
   try {
     const redis = Redis.fromEnv();
@@ -38,41 +43,25 @@ async function checkUpstash() {
 
 await checkUpstash();
 
-
+// -------------------- App Express --------------------
 const app = express();
-
-app.use(express.json()); // 🔥 parse JSON body (OBLIGATOIRE)
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 
 const PORT = process.env.PORT || 5001;
 
-/**
- * =======================
- * Middlewares globaux
- * =======================
- */
-app.set("trust proxy", 1);   // utile sur Render / Heroku
-
+// -------------------- Global Middlewares --------------------
+app.set("trust proxy", 1); 
 app.use(cors());
 app.use(helmet());
 app.use(compression());
 
-
-/**
- * =======================
- * Cron job (prod only)
- * =======================
- */
+// -------------------- Cron Job --------------------
 if (process.env.NODE_ENV === "production") {
   job.start();
 }
 
-/**
- * =======================
- * Logs clés
- * =======================
- */
+// -------------------- Logs --------------------
 console.log("CLERK_SECRET_KEY:", !!process.env.CLERK_SECRET_KEY);
 console.log("CLERK_PUBLISHABLE_KEY:", !!process.env.CLERK_PUBLISHABLE_KEY);
 console.log("UPSTASH_REDIS_REST_URL", process.env.UPSTASH_REDIS_REST_URL);
@@ -81,26 +70,14 @@ console.log(
   process.env.UPSTASH_REDIS_REST_TOKEN?.slice(0, 4) + "..."
 );
 
-/**
- * =======================
- * Routes publiques
- * =======================
- */
+// -------------------- Public Routes --------------------
 app.get("/api/health", (req, res) => res.status(200).json({ status: "ok" }));
 app.get("/api/test", (req, res) => res.json({ message: "API OK" }));
 
-/**
- * =======================
- * Middlewares protégés
- * =======================
- */
+// -------------------- Protected Middlewares --------------------
 const protectedMiddlewares = [rateLimiter, clerkMiddleware(), syncUser];
 
-/**
- * =======================
- * Routes protégées
- * =======================
- */
+// -------------------- Protected Routes --------------------
 app.get("/api", protectedMiddlewares, (req, res) => {
   console.log("➡️ /api called", req.auth);
   res.json({ userId: req.auth.userId });
@@ -118,11 +95,36 @@ app.use("/api/category-xp", protectedMiddlewares, categoryXpRoute);
 app.use("/api/challenges", protectedMiddlewares, challengesRoute);
 app.use("/api/user-challenges", protectedMiddlewares, userChallengesRoute);
 
-/**
- * =======================
- * Error handler
- * =======================
- */
+// -------------------- Cloudinary Upload Endpoint --------------------
+
+// Config Cloudinary depuis CLOUDINARY_URL
+cloudinary.v2.config({
+  cloudinary_url: process.env.CLOUDINARY_URL,
+});
+
+const upload = multer({ dest: "uploads/" });
+
+app.post("/api/upload", protectedMiddlewares, upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    const filePath = path.resolve(req.file.path);
+
+    const result = await cloudinary.v2.uploader.upload(filePath, {
+      folder: "services", // optionnel
+    });
+
+    // Supprime le fichier temporaire
+    fs.unlinkSync(filePath);
+
+    res.json({ url: result.secure_url });
+  } catch (err) {
+    console.error("Cloudinary upload error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -------------------- Error Handler --------------------
 app.use((err, req, res, next) => {
   console.error("❌ SERVER ERROR:", err);
 
@@ -133,11 +135,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: "Internal Server Error" });
 });
 
-/**
- * =======================
- * Start server
- * =======================
- */
+// -------------------- Start Server --------------------
 async function startServer() {
   await initDB();
   app.listen(PORT, () => {

@@ -6,7 +6,7 @@ import cloudinary from "cloudinary";
 
 const router = express.Router();
 
-// Multer pour stocker temporairement les fichiers
+// Multer pour fichiers temporaires
 const upload = multer({ dest: "uploads/" });
 
 // Config Cloudinary depuis CLOUDINARY_URL
@@ -17,21 +17,20 @@ cloudinary.v2.config({
 // POST /api/upload
 router.post("/", upload.single("file"), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
 
     const filePath = path.resolve(req.file.path);
-
-    const result = await cloudinary.v2.uploader.upload(filePath, {
-      folder: "services", // optionnel : dossier Cloudinary
-    });
-
-    // Supprime le fichier temporaire
+    const result = await cloudinary.v2.uploader.upload(filePath, { folder: "services" });
     fs.unlinkSync(filePath);
 
-    res.json({ url: result.secure_url });
+
+    // Retourne l'URL
+    return res.json({ url: result.secure_url });
   } catch (err) {
     console.error("Cloudinary upload error:", err);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 

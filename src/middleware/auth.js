@@ -1,22 +1,27 @@
-// backend/src/middleware/auth.js
-import Clerk from "@clerk/clerk-sdk-node";
+import { verifyToken } from "@clerk/clerk-sdk-node";
 
-export const requireAuth = (req, res, next) => {
-    console.log("test");
-
+export const requireAuth = async (req, res, next) => {
   try {
-    // Récupérer l'utilisateur depuis le header Authorization
     const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
 
-    const token = authHeader.replace("Bearer ", "");
-    const { userId } = Clerk.sessions.verifyToken(token); // ⚡ nouvelle syntaxe
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!authHeader?.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "No token provided" });
+    }
 
-    req.clerkUserId = userId;
+    const token = authHeader.split(" ")[1];
+
+    // ✅ vérification officielle Clerk
+    const payload = await verifyToken(token, {
+      secretKey: process.env.CLERK_SECRET_KEY,
+    });
+
+    console.log("✅ Auth OK:", payload.sub);
+
+    req.clerkUserId = payload.sub; // user id Clerk
+
     next();
-  } catch (error) {
-    console.error("Auth error:", error);
+  } catch (err) {
+    console.error("❌ Auth error:", err);
     return res.status(401).json({ message: "Unauthorized" });
   }
 };

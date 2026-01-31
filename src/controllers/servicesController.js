@@ -63,6 +63,7 @@ export async function createService(req, res) {
       description,
       price,
       category, // nom envoyé par le front
+      image_url,
       type = "service",
       is_hourly = false,
       latitude,
@@ -101,6 +102,7 @@ export async function createService(req, res) {
         description,
         price,
         category_id,
+        image_url,
         user_id,
         type,
         is_hourly,
@@ -115,6 +117,7 @@ export async function createService(req, res) {
         ${description},
         ${price},
         ${category_id},
+        ${image_url},
         ${user_id},
         ${type},
         ${is_hourly},
@@ -149,6 +152,7 @@ export async function updateService(req, res) {
       status,
       is_hourly,
       type,
+      image_url,
       latitude,
       longitude,
       address,
@@ -171,6 +175,7 @@ export async function updateService(req, res) {
         address = COALESCE(${address}, address),
         city = COALESCE(${city}, city),
         postal_code = COALESCE(${postal_code}, postal_code),
+        image_url = COALESCE(${image_url}, image_url),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
       RETURNING *

@@ -89,7 +89,8 @@ export async function initDB() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         type VARCHAR(20) CHECK (type IN ('service', 'demande')) NOT NULL DEFAULT 'service',
-        is_hourly BOOLEAN DEFAULT false
+        is_hourly BOOLEAN DEFAULT false,
+        image_url TEXT
       )
     `;
 

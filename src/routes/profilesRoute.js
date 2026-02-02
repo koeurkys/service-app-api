@@ -48,7 +48,7 @@ router.get("/me", async (req, res) => {
         s.total_bookings AS reviews_count,
         s.status,
         s.created_at,
-        s.image_url  ✅ RÉCUPÈRE LA VRAIE IMAGE
+        s.image_url
       FROM services s
       JOIN categories c ON c.id = s.category_id
       WHERE s.user_id = ${user.id}

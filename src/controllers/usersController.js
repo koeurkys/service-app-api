@@ -46,6 +46,35 @@ export async function getUserById(req, res) {
   }
 }
 
+export async function getPosition(req, res) {
+  try {
+    const clerkId = req.auth?.userId;
+    if (!clerkId) return res.status(401).json({ message: "Unauthorized" });
+
+    // Récupérer tous les utilisateurs avec une position récente (moins de 5 min)
+    const users = await sql`
+      SELECT 
+        id, 
+        name, 
+        email, 
+        avatar_url, 
+        latitude, 
+        longitude
+      FROM users
+      WHERE 
+        clerk_id != ${clerkId}
+        AND latitude IS NOT NULL 
+        AND longitude IS NOT NULL
+        AND updated_at > NOW() - INTERVAL '5 minutes'
+    `;
+
+    res.json(users);
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+}
+
 export async function createUser(req, res) {
   try {
     const { name, email, password_hash, phone, avatar_url, role } = req.body;

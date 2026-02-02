@@ -10,11 +10,13 @@ import {
 
 const router = express.Router();
 
+// ✅ /me DOIT être AVANT /:id et en GET pas DELETE
+router.get("/me", getUserByMe);
+
 router.get("/", getUsers);
 router.get("/:id", getUserById);
 router.post("/", createUser);
 router.put("/:id", updateUser);
 router.delete("/:id", deleteUser);
-router.delete("/me", getUserByMe);
 
 export default router;

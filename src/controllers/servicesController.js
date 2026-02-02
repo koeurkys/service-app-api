@@ -156,7 +156,7 @@ export async function updateService(req, res) {
       title,
       description,
       price,
-      category_id,
+      category, // ✅ Reçoit le NOM de la catégorie
       status,
       is_hourly,
       type,
@@ -167,6 +167,17 @@ export async function updateService(req, res) {
       city,
       postal_code,
     } = req.body;
+
+    // ✅ Récupère le category_id depuis le nom
+    let category_id = null;
+    if (category) {
+      const categoryResult = await sql`
+        SELECT id FROM categories WHERE name = ${category}
+      `;
+      if (categoryResult.length > 0) {
+        category_id = categoryResult[0].id;
+      }
+    }
 
     const updated = await sql`
       UPDATE services
@@ -189,7 +200,9 @@ export async function updateService(req, res) {
       RETURNING *
     `;
 
-    if (updated.length === 0) return res.status(404).json({ message: "Service not found" });
+    if (updated.length === 0) {
+      return res.status(404).json({ message: "Service not found" });
+    }
 
     res.status(200).json(updated[0]);
   } catch (error) {

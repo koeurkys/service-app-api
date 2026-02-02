@@ -36,6 +36,7 @@ export async function getServiceById(req, res) {
         s.*,
         c.name AS category_name,
         u.name AS username
+        u.avatar_url
       FROM services s
       JOIN categories c ON c.id = s.category_id
       JOIN users u ON u.id = s.user_id

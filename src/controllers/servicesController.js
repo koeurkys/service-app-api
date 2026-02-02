@@ -35,7 +35,8 @@ export async function getServiceById(req, res) {
       SELECT 
         s.*,
         c.name AS category_name,
-        u.name AS username
+        u.name AS username,
+        u.email,
         u.avatar_url
       FROM services s
       JOIN categories c ON c.id = s.category_id
@@ -47,7 +48,13 @@ export async function getServiceById(req, res) {
       return res.status(404).json({ message: "Service not found" });
     }
 
-    res.status(200).json(service[0]);
+    // ✅ Gère le fallback côté JavaScript au lieu de SQL
+    const result = service[0];
+    if (!result.username) {
+      result.username = result.email?.split('@')[0] || 'Anonyme';
+    }
+
+    res.status(200).json(result);
   } catch (error) {
     console.error("Error getting service:", error);
     res.status(500).json({ message: "Internal server error" });

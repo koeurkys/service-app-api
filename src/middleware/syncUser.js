@@ -20,6 +20,7 @@ export async function syncUser(req, res, next) {
 
     const name =
       claims.name ??
+      `${claims.given_name ?? ""} ${claims.family_name ?? ""}`.trim() ??
       claims.username ??
       null;
 

@@ -6,15 +6,14 @@ import {
   updateUser,
   deleteUser,
   getUserByMe,
-  getPosition,
+  getPosService,
 } from "../controllers/usersController.js";
 
 const router = express.Router();
 
 // ✅ /me DOIT être AVANT /:id et en GET pas DELETE
 router.get("/me", getUserByMe);
-router.get("/nearby", getPosition);
-
+router.get("/nearby", getPosService);
 router.get("/", getUsers);
 router.get("/:id", getUserById);
 router.post("/", createUser);

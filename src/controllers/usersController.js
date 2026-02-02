@@ -46,33 +46,29 @@ export async function getUserById(req, res) {
   }
 }
 
-export async function getPosition(req, res) {
+export async function getPosService(req, res) {
   try {
-    const clerkId = req.auth?.userId;
-    if (!clerkId) return res.status(401).json({ message: "Unauthorized" });
-
-    // Récupérer tous les utilisateurs avec une position récente (moins de 5 min)
-    const users = await sql`
+    const services = await sql`
       SELECT 
-        id, 
-        name, 
-        email, 
-        avatar_url, 
-        latitude, 
-        longitude
-      FROM users
+        s.*,
+        c.name AS category_name,
+        u.name AS username
+      FROM services s
+      JOIN categories c ON c.id = s.category_id
+      JOIN users u ON u.id = s.user_id
       WHERE 
-        clerk_id != ${clerkId}
-        AND latitude IS NOT NULL 
-        AND longitude IS NOT NULL
-        AND updated_at > NOW() - INTERVAL '5 minutes'
+        s.status = 'active'
+        AND s.latitude IS NOT NULL 
+        AND s.longitude IS NOT NULL
+      ORDER BY s.created_at DESC
     `;
 
-    res.json(users);
-  } catch (err) {
-    console.error("Error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.json(services);
+  } catch (error) {
+    console.error("Error getting nearby services:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
+
 }
 
 export async function createUser(req, res) {

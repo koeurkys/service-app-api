@@ -46,30 +46,6 @@ export async function getUserById(req, res) {
   }
 }
 
-export async function getPosService(req, res) {
-  try {
-    const services = await sql`
-      SELECT 
-        s.*,
-        c.name AS category_name,
-        u.name AS username
-      FROM services s
-      JOIN categories c ON c.id = s.category_id
-      JOIN users u ON u.id = s.user_id
-      WHERE 
-        s.status = 'active'
-        AND s.latitude IS NOT NULL 
-        AND s.longitude IS NOT NULL
-      ORDER BY s.created_at DESC
-    `;
-
-    res.json(services);
-  } catch (error) {
-    console.error("Error getting nearby services:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-
-}
 
 export async function createUser(req, res) {
   try {

@@ -12,7 +12,6 @@ import {
 const router = express.Router();
 
 // ✅ /me DOIT être AVANT /:id et en GET pas DELETE
-router.get("/nearby", getPosService);
 router.get("/me", getUserByMe);
 router.get("/", getUsers);
 router.get("/:id", getUserById);

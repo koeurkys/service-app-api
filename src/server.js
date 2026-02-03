@@ -15,6 +15,7 @@ import rateLimiter from "./middleware/rateLimiter.js";
 import { clerkMiddleware } from "@clerk/express";
 import { syncUser } from "./middleware/syncUser.js";
 
+import rankingRoute from "./routes/rankingRoute.js";
 import usersRoute from "./routes/usersRoute.js";
 import categoriesRoute from "./routes/categoriesRoute.js";
 import profilesRoute from "./routes/profilesRoute.js";
@@ -85,6 +86,7 @@ app.get("/api", protectedMiddlewares, (req, res) => {
   res.json({ userId: req.auth.userId });
 });
 
+app.use("/api/ranking", rankingRoute);
 app.use("/api/users", protectedMiddlewares, usersRoute);
 app.use("/api/categories", protectedMiddlewares, categoriesRoute);
 app.use("/api/profiles", protectedMiddlewares, profilesRoute);

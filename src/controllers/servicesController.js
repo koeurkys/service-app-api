@@ -9,6 +9,7 @@ export async function getServices(req, res) {
       SELECT 
         s.*,
         c.name AS category_name,
+        c.slug AS category_slug,
         u.name AS username
       FROM services s
       JOIN categories c ON c.id = s.category_id

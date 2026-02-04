@@ -3,7 +3,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import cloudinary from "cloudinary";
-import { getImageService } from "../controllers/uploadController";
+import { getImageService } from "../controllers/uploadController.js";
 
 const router = express.Router();
 

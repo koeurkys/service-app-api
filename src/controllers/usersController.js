@@ -16,7 +16,7 @@ export async function getUserByMe(req, res) {
     if (!clerkId) return res.status(401).json({ message: "Unauthorized" });
 
     const [user] = await sql`
-      SELECT id, clerk_id, email, name, avatar_url, role
+      SELECT id, clerk_id, email, name, avatar_url, role, phone
       FROM users
       WHERE clerk_id = ${clerkId}
     `;

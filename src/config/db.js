@@ -75,7 +75,7 @@ export async function initDB() {
         id SERIAL PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
         description TEXT NOT NULL,
-        price DECIMAL(10,2) NOT NULL CHECK (price > 0),
+        price DECIMAL(10,2) NOT NULL CHECK (price >= 0),
         category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         latitude DECIMAL(10,8),

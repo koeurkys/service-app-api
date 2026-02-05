@@ -101,7 +101,7 @@ export async function createService(req, res) {
       title,
       description,
       price,
-      category, // nom envoyé par le front
+      category, // ✅ SLUG envoyé par le front
       image_url,
       type = "service",
       is_hourly = false,
@@ -111,27 +111,45 @@ export async function createService(req, res) {
       city,
       postal_code,
     } = req.body;
+
+    console.log("📝 Creating service with category slug:", category);
+
     // 🔹 Vérifier les champs minimaux
     if (!title || !description || !price || !category) {
-      return res.status(400).json({ message: "Missing required fields", received: req.body });
+      return res.status(400).json({ 
+        message: "Missing required fields", 
+        received: req.body 
+      });
     }
 
-    // 🔹 Récupérer category_id depuis le nom
+    // ✅ Récupérer category_id depuis le SLUG (pas name)
     const categoryResult = await sql`
-      SELECT id FROM categories WHERE name = ${category}
+      SELECT id FROM categories WHERE slug = ${category}
     `;
+    
     if (categoryResult.length === 0) {
-      return res.status(400).json({ message: "Invalid category", received: req.body });
+      console.error("❌ Category not found for slug:", category);
+      return res.status(400).json({ 
+        message: "Invalid category slug", 
+        received_slug: category 
+      });
     }
+    
     const category_id = categoryResult[0].id;
+    console.log("✅ Category found:", category_id);
 
-    // 🔹 Récupérer l'utilisateur depuis le JWT (req.clerkUserId)
+    // 🔹 Récupérer l'utilisateur depuis le JWT
     const userResult = await sql`
-      SELECT id FROM users WHERE clerk_id = ${req.clerkUserId}
+      SELECT id FROM users WHERE clerk_id = ${req.auth.userId}
     `;
+    
     if (userResult.length === 0) {
-      return res.status(400).json({ message: "User not found", clerkId: req.clerkUserId });
+      return res.status(400).json({ 
+        message: "User not found", 
+        clerkId: req.auth.userId 
+      });
     }
+    
     const user_id = userResult[0].id;
 
     // 🔹 Insérer le service
@@ -169,10 +187,14 @@ export async function createService(req, res) {
       RETURNING *
     `;
 
+    console.log("✅ Service created:", service[0].id);
     res.status(201).json(service[0]);
   } catch (error) {
-    console.error("Error creating service:", error);
-    res.status(500).json({ message: "Internal server error", error: error.message });
+    console.error("❌ Error creating service:", error);
+    res.status(500).json({ 
+      message: "Internal server error", 
+      error: error.message 
+    });
   }
 }
 

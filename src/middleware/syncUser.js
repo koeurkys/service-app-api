@@ -1,53 +1,54 @@
 import { sql } from "../config/db.js";
-
+import { clerkClient } from "@clerk/express";
 
 export async function syncUser(req, res, next) {
-  if (!req.auth?.userId) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
-  const clerkId = req.auth.userId;
-  const claims = req.auth.sessionClaims ?? {};
-
-  const email =
-    claims.email ??
-    claims.email_address ??
-    null;
-
-  const name =
-    claims.name ??
-    `${claims.given_name ?? ""} ${claims.family_name ?? ""}`.trim() ??
-    claims.username ??
-    null;
-
-  const avatarUrl =
-    claims.image_url ??
-    claims.picture ??
-    null;
-
   try {
+    if (!req.auth?.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const clerkId = req.auth.userId;
+
+    // =========================
+    // 🔥 Récupérer les infos depuis Clerk
+    // =========================
+    const clerkUser = await clerkClient.users.getUser(clerkId);
+
+    const firstName = clerkUser.firstName || "";
+    const lastName = clerkUser.lastName || "";
+    const name = `${firstName} ${lastName}`.trim();
+
+    const email = clerkUser.primaryEmailAddress?.emailAddress || null;
+    const avatarUrl = clerkUser.imageUrl || null;
+    const phone = clerkUser.unsafeMetadata?.phone || null;
+
+    // =========================
     // 🔥 UPSERT USER
+    // =========================
     const [user] = await sql`
       INSERT INTO users (
         clerk_id,
-        email,
         name,
+        email,
+        phone,
         avatar_url,
         role,
         is_verified
       )
       VALUES (
         ${clerkId},
-        ${email},
         ${name},
+        ${email},
+        ${phone},
         ${avatarUrl},
         'client',
         true
       )
       ON CONFLICT (clerk_id)
       DO UPDATE SET
-        email = EXCLUDED.email,
         name = EXCLUDED.name,
+        email = EXCLUDED.email,
+        phone = EXCLUDED.phone,
         avatar_url = EXCLUDED.avatar_url,
         updated_at = NOW()
       RETURNING id
@@ -55,14 +56,18 @@ export async function syncUser(req, res, next) {
 
     const userId = user.id;
 
-    // profile
+    // =========================
+    // 🔹 Créer profile si inexistant
+    // =========================
     await sql`
       INSERT INTO profiles (user_id)
       VALUES (${userId})
       ON CONFLICT (user_id) DO NOTHING
     `;
 
-    // xp
+    // =========================
+    // 🔹 Créer category_xp par défaut
+    // =========================
     await sql`
       INSERT INTO category_xp (user_id, category_id, xp)
       SELECT ${userId}, c.id, 0
@@ -70,7 +75,9 @@ export async function syncUser(req, res, next) {
       ON CONFLICT (user_id, category_id) DO NOTHING
     `;
 
-    // challenges
+    // =========================
+    // 🔹 Créer user_challenges actifs
+    // =========================
     await sql`
       INSERT INTO user_challenges (user_id, challenge_id, status, progress)
       SELECT ${userId}, ch.id, 'pending', 0

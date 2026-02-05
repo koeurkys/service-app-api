@@ -25,7 +25,7 @@ export async function getProfileByMe(req, res) {
         p.total_services_completed     AS completed_jobs,
         p.rating_avg                  AS avg_rating,
         COALESCE(SUM(b.total_price), 0) AS total_earnings,
-        COUNT(b.id)                   AS total_bookings
+        COUNT(b.id)                   AS total_bookings,
         u.avatar_url AS avatar_url
       FROM profiles p
       JOIN users u ON u.id = p.user_id

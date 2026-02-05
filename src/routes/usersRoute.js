@@ -1,23 +1,19 @@
 import express from "express";
+import { clerkMiddleware } from "@clerk/express";
 import {
   getUsers,
   getUserById,
-  createUser,
-  updateUser,
-  deleteUser,
   getUserByMe,
 } from "../controllers/usersController.js";
+import { syncUser } from "../middleware/syncUser.js";
 
 const router = express.Router();
 
-// ✅ /me DOIT être AVANT /:id et en GET pas DELETE
-router.get("/me", getUserByMe);
+// ME = utilisateur connecté
+router.get("/me", clerkMiddleware(), syncUser, getUserByMe);
+
+// Admin only (optionnel)
 router.get("/", getUsers);
 router.get("/:id", getUserById);
-router.post("/", createUser);
-router.put("/:id", updateUser);
-router.delete("/:id", deleteUser);
-
-// Ajoute cette route dans usersRoute.js
 
 export default router;

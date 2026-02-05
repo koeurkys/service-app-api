@@ -14,6 +14,7 @@ import { initDB } from "./config/db.js";
 import rateLimiter from "./middleware/rateLimiter.js";
 import { clerkMiddleware } from "@clerk/express";
 import { syncUser } from "./middleware/syncUser.js";
+import syncRoute from "./routes/syncRoute.js";
 
 import rankingRoute from "./routes/rankingRoute.js";
 import usersRoute from "./routes/usersRoute.js";
@@ -85,6 +86,9 @@ app.get("/api", protectedMiddlewares, (req, res) => {
   console.log("➡️ /api called", req.auth);
   res.json({ userId: req.auth.userId });
 });
+
+app.use("/api/sync-user", syncRoute);
+
 
 app.use("/api/ranking", rankingRoute);
 app.use("/api/users", protectedMiddlewares, usersRoute);

@@ -1,3 +1,6 @@
+import { sql } from "../config/db.js";
+
+
 export async function syncUser(req, res, next) {
   if (!req.auth?.userId) {
     return res.status(401).json({ message: "Unauthorized" });

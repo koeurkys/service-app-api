@@ -26,12 +26,14 @@ export async function getProfileByMe(req, res) {
         p.rating_avg                  AS avg_rating,
         COALESCE(SUM(b.total_price), 0) AS total_earnings,
         COUNT(b.id)                   AS total_bookings
+        u.avatar_url AS avatar_url
       FROM profiles p
+      JOIN users u ON u.id = p.user_id
       LEFT JOIN bookings b
         ON b.provider_id = p.user_id
         AND b.status = 'completed'
       WHERE p.user_id = ${user.id}
-      GROUP BY p.id
+      GROUP BY p.id, u.avatar_url
     `;
 
     // 3️⃣ services

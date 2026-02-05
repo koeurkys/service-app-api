@@ -1,5 +1,60 @@
 import { sql } from "../config/db.js";
+export async function getProfileByUserId(req, res) {
+  try {
+    const { userId } = req.params;
 
+    // Récupérer l'utilisateur
+    const [user] = await sql`
+      SELECT id, name, email, avatar_url, created_at, role
+      FROM users
+      WHERE id = ${userId}
+    `;
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Stats
+    const [stats] = await sql`
+      SELECT
+        COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'completed') AS completed_jobs,
+        COUNT(DISTINCT s.id) AS total_services,
+        COALESCE(AVG(r.rating), 0)::float AS avg_rating
+      FROM users u
+      LEFT JOIN services s ON s.user_id = u.id AND s.status = 'active'
+      LEFT JOIN bookings b ON b.service_id = s.id
+      LEFT JOIN reviews r ON r.service_id = s.id
+      WHERE u.id = ${user.id}
+    `;
+
+    // Services actifs
+    const services = await sql`
+      SELECT
+        s.id,
+        s.title,
+        s.price AS price_per_hour,
+        s.image_url,
+        s.created_at,
+        s.average_rating::float AS rating,
+        s.total_bookings AS reviews_count,
+        c.name AS category
+      FROM services s
+      JOIN categories c ON c.id = s.category_id
+      WHERE s.user_id = ${user.id} AND s.status = 'active'
+      ORDER BY s.created_at DESC
+    `;
+
+    res.json({
+      ...user,
+      completed_jobs: parseInt(stats.completed_jobs) || 0,
+      avg_rating: parseFloat(stats.avg_rating) || 0,
+      services,
+    });
+  } catch (error) {
+    console.error("Error getting public profile:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
 export async function getProfileByMe(req, res) {
   try {
     const clerkId = req.auth?.userId;
@@ -56,7 +111,7 @@ export async function getProfileByMe(req, res) {
 
     res.json({
       ...stats,
-      services
+      services,
     });
   } catch (error) {
     console.error("Profile error:", error);
@@ -114,7 +169,7 @@ export async function getProfileByUserId(req, res) {
     return res.status(200).json({
       user: user[0],
       profile: profile[0] || null,
-      services,          // <- ici on renvoie les services
+      services, // <- ici on renvoie les services
       category_xp: categoryXp,
       badges,
     });

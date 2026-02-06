@@ -1,7 +1,7 @@
 import cron from "cron";
 import https from "https";
 
-const API_URL = process.env.API_URL || "https://service-app-api-lwm3.onrender.com/api/health";
+const API_URL = process.env.API_URL || "https://service-app-api-lwm3.onrender.com/api/wake";
 
 const job = new cron.CronJob("*/14 * * * *", function () {
   console.log("🔄 Cron job running - keeping server alive...");

@@ -30,7 +30,6 @@ import challengesRoute from "./routes/challengesRoute.js";
 import userChallengesRoute from "./routes/userChallengesRoute.js";
 import uploadRoute from "./routes/uploadRoute.js";
 
-
 import job from "./config/cron.js";
 import { Redis } from "@upstash/redis";
 
@@ -55,7 +54,7 @@ app.use(express.urlencoded({ extended: true }));
 const PORT = process.env.PORT || 5001;
 
 // -------------------- Global Middlewares --------------------
-app.set("trust proxy", 1); 
+app.set("trust proxy", 1);
 app.use(cors());
 app.use(helmet());
 app.use(compression());
@@ -75,10 +74,17 @@ console.log("CLERK_PUBLISHABLE_KEY:", !!process.env.CLERK_PUBLISHABLE_KEY);
 console.log("UPSTASH_REDIS_REST_URL", process.env.UPSTASH_REDIS_REST_URL);
 console.log(
   "UPSTASH_REDIS_REST_TOKEN",
-  process.env.UPSTASH_REDIS_REST_TOKEN?.slice(0, 4) + "..."
+  process.env.UPSTASH_REDIS_REST_TOKEN?.slice(0, 4) + "...",
 );
 
 // -------------------- Public Routes --------------------
+// -------------------- Warm-up endpoint --------------------
+app.get("/api/wake", (req, res) => {
+  res.status(200).json({
+    status: "awake",
+    timestamp: new Date().toISOString(),
+  });
+});
 app.get("/api/health", (req, res) => res.status(200).json({ status: "ok" }));
 app.get("/api/test", (req, res) => res.json({ message: "API OK" }));
 
@@ -92,7 +98,6 @@ app.get("/api", protectedMiddlewares, (req, res) => {
 });
 
 app.use("/api/sync-user", syncRoute);
-
 
 app.use("/api/ranking", rankingRoute);
 app.use("/api/users", protectedMiddlewares, usersRoute);
@@ -117,7 +122,6 @@ cloudinary.v2.config({
 const upload = multer({ dest: "uploads/" });
 
 app.use("/api/upload", protectedMiddlewares, uploadRoute); // ✅
-
 
 // -------------------- Error Handler --------------------
 app.use((err, req, res, next) => {

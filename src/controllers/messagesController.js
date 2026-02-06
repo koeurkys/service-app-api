@@ -128,36 +128,36 @@ export const getUserConversations = async (req, res) => {
     const currentUserId = currentUser.id;
 
     const conversations = await sql`
-      SELECT DISTINCT
-        CASE 
-          WHEN sender_id = ${currentUserId} THEN receiver_id
-          ELSE sender_id
-        END as other_user_id,
+      WITH conversation_users AS (
+        SELECT DISTINCT
+          CASE 
+            WHEN sender_id = ${currentUserId} THEN receiver_id
+            ELSE sender_id
+          END as other_user_id
+        FROM messages
+        WHERE sender_id = ${currentUserId} OR receiver_id = ${currentUserId}
+      )
+      SELECT 
+        cu.other_user_id,
         u.name,
         u.avatar_url,
-        (SELECT content FROM messages 
-         WHERE (sender_id = ${currentUserId} AND receiver_id = u.id)
-            OR (sender_id = u.id AND receiver_id = ${currentUserId})
-         ORDER BY created_at DESC
+        (SELECT content FROM messages m
+         WHERE (m.sender_id = ${currentUserId} AND m.receiver_id = cu.other_user_id)
+            OR (m.sender_id = cu.other_user_id AND m.receiver_id = ${currentUserId})
+         ORDER BY m.created_at DESC
          LIMIT 1) as last_message,
-        (SELECT created_at FROM messages 
-         WHERE (sender_id = ${currentUserId} AND receiver_id = u.id)
-            OR (sender_id = u.id AND receiver_id = ${currentUserId})
-         ORDER BY created_at DESC
+        (SELECT created_at FROM messages m
+         WHERE (m.sender_id = ${currentUserId} AND m.receiver_id = cu.other_user_id)
+            OR (m.sender_id = cu.other_user_id AND m.receiver_id = ${currentUserId})
+         ORDER BY m.created_at DESC
          LIMIT 1) as last_message_date,
-        (SELECT COUNT(*) FROM messages 
-         WHERE sender_id = u.id 
-         AND receiver_id = ${currentUserId}
-         AND is_read = FALSE) as unread_count
-      FROM messages m
-      JOIN users u ON (
-        CASE 
-          WHEN m.sender_id = ${currentUserId} THEN m.receiver_id = u.id
-          ELSE m.sender_id = u.id
-        END
-      )
-      WHERE m.sender_id = ${currentUserId} OR m.receiver_id = ${currentUserId}
-      ORDER BY last_message_date DESC
+        (SELECT COUNT(*) FROM messages m
+         WHERE m.sender_id = cu.other_user_id 
+         AND m.receiver_id = ${currentUserId}
+         AND m.is_read = FALSE) as unread_count
+      FROM conversation_users cu
+      JOIN users u ON u.id = cu.other_user_id
+      ORDER BY last_message_date DESC NULLS LAST
     `;
 
     res.json(conversations);

@@ -57,7 +57,7 @@ export async function getProfileByUserId(req, res) {
 }
 export async function getProfileByMe(req, res) {
   try {
-    const clerkId = req.auth?.userId;
+    const clerkId = req.clerkUserId;
 
     if (!clerkId) {
       return res.status(401).json({ message: "Unauthorized" });

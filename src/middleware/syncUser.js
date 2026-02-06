@@ -4,7 +4,8 @@ import { clerkClient } from "@clerk/clerk-sdk-node";
 export async function syncUser(req, res, next) {
   try {
     if (!req.auth?.userId) {
-      return res.status(401).json({ message: "Unauthorized" });
+      console.log("⚠️ syncUser: No auth found, skipping user sync");
+      return next(); // Skip sync if no auth, don't block request
     }
 
     const clerkId = req.auth.userId;

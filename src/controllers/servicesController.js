@@ -140,13 +140,13 @@ export async function createService(req, res) {
 
     // 🔹 Récupérer l'utilisateur depuis le JWT
     const userResult = await sql`
-      SELECT id FROM users WHERE clerk_id = ${req.auth.userId}
+      SELECT id FROM users WHERE clerk_id = ${req.clerkUserId}
     `;
     
     if (userResult.length === 0) {
       return res.status(400).json({ 
         message: "User not found", 
-        clerkId: req.auth.userId 
+        clerkId: req.clerkUserId 
       });
     }
     

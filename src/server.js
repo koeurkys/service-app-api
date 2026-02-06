@@ -142,7 +142,7 @@ const protectedMiddlewares = [rateLimiter, clerkMiddleware(), syncUser];
 // -------------------- Protected Routes --------------------
 app.get("/api", protectedMiddlewares, (req, res) => {
   console.log("➡️ /api called", req.auth);
-  res.json({ userId: req.auth.userId });
+  res.json({ userId: req.auth?.userId });
 });
 
 // -------------------- Routes Endpoints --------------------

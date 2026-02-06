@@ -12,7 +12,7 @@ export async function getUsers(req, res) {
 
 export async function getUserByMe(req, res) {
   try {
-    const clerkId = req.auth?.userId;
+    const clerkId = req.clerkUserId;
     if (!clerkId) return res.status(401).json({ message: "Unauthorized" });
 
     const [user] = await sql`

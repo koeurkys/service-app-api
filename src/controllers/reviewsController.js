@@ -40,6 +40,40 @@ export async function createReview(req, res) {
       RETURNING *
     `;
 
+    // 🔄 Mettre à jour la note moyenne du service
+    console.log("📊 Mise à jour de la note moyenne du service:", service_id);
+    const avgRating = await sql`
+      SELECT ROUND(AVG(rating)::numeric, 2) as average_rating
+      FROM reviews
+      WHERE service_id = ${service_id}
+    `;
+
+    if (avgRating.length > 0 && avgRating[0].average_rating) {
+      await sql`
+        UPDATE services
+        SET average_rating = ${avgRating[0].average_rating}
+        WHERE id = ${service_id}
+      `;
+      console.log("✅ Service note mise à jour:", avgRating[0].average_rating);
+    }
+
+    // 🔄 Mettre à jour la note globale du profil du provider
+    console.log("📊 Mise à jour de la note globale du profil:", provider_id);
+    const providerAvgRating = await sql`
+      SELECT ROUND(AVG(rating)::numeric, 2) as rating_avg
+      FROM reviews
+      WHERE provider_id = ${provider_id}
+    `;
+
+    if (providerAvgRating.length > 0 && providerAvgRating[0].rating_avg) {
+      await sql`
+        UPDATE profiles
+        SET rating_avg = ${providerAvgRating[0].rating_avg}
+        WHERE user_id = ${provider_id}
+      `;
+      console.log("✅ Profil note mise à jour:", providerAvgRating[0].rating_avg);
+    }
+
     res.status(201).json(review[0]);
   } catch (error) {
     console.log("Error creating review", error);

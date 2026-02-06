@@ -110,6 +110,7 @@ export async function getProfileByMe(req, res) {
     `;
 
     res.json({
+      id: user.id, // Ajouter l'ID utilisateur
       ...stats,
       services,
     });

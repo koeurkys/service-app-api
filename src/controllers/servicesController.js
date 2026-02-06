@@ -49,11 +49,21 @@ export async function getServiceById(req, res) {
       return res.status(404).json({ message: "Service not found" });
     }
 
+    // ✅ Récupérer le nombre de notes (reviews) pour ce service
+    const reviewCount = await sql`
+      SELECT COUNT(id) as total_reviews
+      FROM reviews
+      WHERE service_id = ${id}
+    `;
+
     // ✅ Gère le fallback côté JavaScript au lieu de SQL
     const result = service[0];
     if (!result.username) {
       result.username = result.email?.split('@')[0] || 'Anonyme';
     }
+
+    // ✅ Ajouter le nombre de reviews
+    result.total_reviews = reviewCount[0]?.total_reviews || 0;
 
     res.status(200).json(result);
   } catch (error) {

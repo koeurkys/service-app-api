@@ -12,6 +12,7 @@ export async function getRanking(req, res) {
     const ranking = await sql`
       SELECT
         users.id,
+        users.clerk_id,
         users.name,
         users.avatar_url,
         users.role,

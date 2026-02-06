@@ -246,6 +246,26 @@ export async function initDB() {
       )
     `;
 
+    // =========================
+    // MESSAGES
+    // =========================
+    await sql`
+      CREATE TABLE IF NOT EXISTS messages (
+        id SERIAL PRIMARY KEY,
+        sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        receiver_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT FALSE,
+        read_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    await sql`CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_messages_receiver_id ON messages(receiver_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at)`;
+
     console.log("✅ Database initialized successfully");
   } catch (error) {
     console.error("❌ Error initializing DB:", error.message || error);

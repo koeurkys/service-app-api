@@ -54,11 +54,6 @@ app.use(express.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 5001;
 
-app.listen(PORT, () => {
-  console.log("✅ Server running on port", PORT);
-});
-
-
 // -------------------- Global Middlewares --------------------
 app.set("trust proxy", 1); 
 app.use(cors());

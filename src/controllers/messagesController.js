@@ -145,7 +145,7 @@ export const getUserConversations = async (req, res) => {
       )
       SELECT 
         cu.other_user_id,
-        u.name,
+        u.name as other_user_name,
         u.avatar_url,
         (SELECT content FROM messages m
          WHERE (m.sender_id = ${currentUserId} AND m.receiver_id = cu.other_user_id)

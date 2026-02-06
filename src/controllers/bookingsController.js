@@ -262,6 +262,9 @@ export async function completeBooking(req, res) {
       RETURNING *
     `;
 
+    // 🎯 Mettre à jour la fiabilité (ancien status → completed)
+    await updateReliabilityScore(booking.client_id, booking.provider_id, booking.status, 'completed');
+
     res.json(updated);
   } catch (error) {
     console.error("Erreur complétude réservation:", error);
@@ -314,9 +317,124 @@ export async function cancelBooking(req, res) {
       RETURNING *
     `;
 
+    // 🎯 Mettre à jour la fiabilité (ancien status → cancelled, avec qui a annulé)
+    await updateReliabilityScore(booking.client_id, booking.provider_id, booking.status, 'cancelled', cancelledBy);
+
     res.json(updated);
   } catch (error) {
     console.error("Erreur annulation réservation:", error);
     res.status(500).json({ error: "Erreur serveur" });
+  }
+}
+
+// ✅ Mettre à jour le statut d'une réservation et ajuster la fiabilité
+export async function updateBookingStatus(req, res) {
+  try {
+    const { id } = req.params;
+    const { status, cancelled_by, cancelled_reason } = req.body;
+
+    if (!id || !status) {
+      return res.status(400).json({ message: "Missing id or status" });
+    }
+
+    const validStatuses = ['pending', 'accepted', 'in_progress', 'completed', 'cancelled', 'disputed'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    // ✅ Récupérer la booking existante
+    const [booking] = await sql`
+      SELECT id, client_id, provider_id, status as old_status
+      FROM bookings
+      WHERE id = ${id}
+    `;
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    console.log("📅 Updating booking", id, "from", booking.old_status, "to", status);
+
+    // ✅ Mettre à jour le booking
+    const [updated] = await sql`
+      UPDATE bookings
+      SET status = ${status}, 
+          cancelled_by = ${cancelled_by || null},
+          cancelled_reason = ${cancelled_reason || null},
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${id}
+      RETURNING *
+    `;
+
+    // ✅ Ajuster la fiabilité basée sur les transitions de statut
+    if (booking.old_status !== status) {
+      await updateReliabilityScore(booking.client_id, booking.provider_id, booking.old_status, status, cancelled_by);
+    }
+
+    res.status(200).json(updated);
+  } catch (error) {
+    console.error("Error updating booking status:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+// ✅ Fonction interne pour mettre à jour le score de fiabilité
+async function updateReliabilityScore(client_id, provider_id, oldStatus, newStatus, cancelledBy) {
+  try {
+    console.log("🎯 Updating reliability:", { client_id, provider_id, oldStatus, newStatus, cancelledBy });
+
+    let clientDelta = 0;
+    let providerDelta = 0;
+
+    // Logique de mutation de fiabilité
+    if ((oldStatus === 'accepted' || oldStatus === 'in_progress') && newStatus === 'completed') {
+      // ✅ Réservation complétée avec succès (depuis accepted ou in_progress)
+      clientDelta = 5;
+      providerDelta = 5;
+      console.log("✅ COMPLETED: both +5");
+    } else if (oldStatus === 'pending' && newStatus === 'cancelled') {
+      // ❌ Annulation pendant pending (peu d'impact)
+      clientDelta = -2;
+      providerDelta = -2;
+      console.log("❌ CANCELLED (pending): both -2");
+    } else if ((oldStatus === 'accepted' || oldStatus === 'in_progress') && newStatus === 'cancelled') {
+      // ❌ Annulation après acceptation
+      if (cancelledBy === 'client') {
+        clientDelta = -10; // Client a annulé = mauvaise fiabilité
+        providerDelta = 0;
+        console.log("❌ CANCELLED by client: client -10, provider +0");
+      } else if (cancelledBy === 'provider') {
+        clientDelta = 0;
+        providerDelta = -10; // Provider a annulé = mauvaise fiabilité
+        console.log("❌ CANCELLED by provider: client +0, provider -10");
+      }
+    } else if (newStatus === 'disputed') {
+      // ⚠️ Litige = mauvaise fiabilité pour les deux
+      clientDelta = -5;
+      providerDelta = -5;
+      console.log("⚠️ DISPUTED: both -5");
+    }
+
+    // ✅ Mettre à jour les scores (entre 0 et 100)
+    if (clientDelta !== 0) {
+      await sql`
+        UPDATE profiles
+        SET reliability_score = GREATEST(0, LEAST(100, reliability_score + ${clientDelta}))
+        WHERE user_id = ${client_id}
+      `;
+      console.log("✅ Client reliability updated by", clientDelta);
+    }
+
+    if (providerDelta !== 0) {
+      await sql`
+        UPDATE profiles
+        SET reliability_score = GREATEST(0, LEAST(100, reliability_score + ${providerDelta}))
+        WHERE user_id = ${provider_id}
+      `;
+      console.log("✅ Provider reliability updated by", providerDelta);
+    }
+  } catch (error) {
+    console.error("Error updating reliability score:", error);
+    // Continue sans thrower - pas critique
   }
 }

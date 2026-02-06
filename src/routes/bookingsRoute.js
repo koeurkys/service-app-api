@@ -7,6 +7,7 @@ import {
   acceptBooking,
   completeBooking,
   cancelBooking,
+  updateBookingStatus,
 } from "../controllers/bookingsController.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -23,6 +24,9 @@ router.post("/", requireAuth, createBooking);
 
 // Récupérer une réservation spécifique
 router.get("/:id", requireAuth, getBookingById);
+
+// ✅ Mettre à jour le statut d'une réservation (et ajuster la fiabilité)
+router.put("/:id/status", requireAuth, updateBookingStatus);
 
 // Accepter une réservation
 router.put("/:id/accept", requireAuth, acceptBooking);

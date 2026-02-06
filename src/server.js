@@ -135,10 +135,14 @@ app.use((err, req, res, next) => {
 });
 
 // -------------------- Start Server --------------------
+// -------------------- Start Server --------------------
 async function startServer() {
   await initDB();
-  app.listen(PORT, () => {
-    console.log("🚀 Server running on PORT:", PORT);
+  
+  // ✅ IMPORTANT : Bind sur 0.0.0.0 pour Render
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`🚀 Server running on 0.0.0.0:${PORT}`);
+    console.log(`✅ Health check: http://localhost:${PORT}/api/health`);
   });
 }
 

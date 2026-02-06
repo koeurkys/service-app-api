@@ -36,15 +36,26 @@ import { Redis } from "@upstash/redis";
 // -------------------- Check Upstash --------------------
 async function checkUpstash() {
   try {
+    // Timeout de 5 secondes pour Upstash
+    const upstashCheck = new Promise((resolve, reject) => {
+      setTimeout(() => reject(new Error("Upstash timeout")), 5000);
+    });
+    
     const redis = Redis.fromEnv();
-    await redis.ping();
+    const pingPromise = redis.ping();
+    
+    await Promise.race([pingPromise, upstashCheck]);
     console.log("✅ Upstash OK");
   } catch (err) {
-    console.error("❌ Upstash error:", err.message);
+    console.warn("⚠️  Upstash not available:", err.message);
+    console.warn("⚠️  Rate limiting will be disabled");
   }
 }
 
-await checkUpstash();
+// ✅ Vérifier Upstash EN ARRIÈRE-PLAN (ne pas bloquer le démarrage)
+checkUpstash().catch(err => {
+  console.warn("⚠️  Background Upstash check failed:", err.message);
+});
 
 // -------------------- App Express --------------------
 const app = express();
@@ -53,11 +64,16 @@ app.use(express.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 5001;
 
+console.log("📦 Express app initialized");
+console.log(`🔧 Configuring middleware...`);
+
 // -------------------- Global Middlewares --------------------
 app.set("trust proxy", 1);
 app.use(cors());
 app.use(helmet());
 app.use(compression());
+
+console.log("✅ Global middlewares configured");
 
 // -------------------- Cron Job --------------------
 if (process.env.NODE_ENV === "production") {
@@ -68,8 +84,8 @@ if (process.env.NODE_ENV === "production") {
   console.log("⏭️ Cron job skipped (dev mode)");
 }
 
-// -------------------- Logs --------------------
-console.log("\n=== Environment Check ===");
+// -------------------- Environment Check --------------------
+console.log("\n=== 🔍 Environment Variables ===");
 console.log("NODE_ENV:", process.env.NODE_ENV || "development");
 console.log("DATABASE_URL:", process.env.DATABASE_URL ? "✅ SET" : "❌ MISSING");
 console.log("CLERK_SECRET_KEY:", !!process.env.CLERK_SECRET_KEY ? "✅ SET" : "❌ MISSING");
@@ -79,16 +95,9 @@ console.log("UPSTASH_REDIS_REST_URL:", process.env.UPSTASH_REDIS_REST_URL ? "✅
 console.log("PORT:", PORT);
 console.log("=== End Check ===\n");
 
-// -------------------- Logs --------------------
-console.log("CLERK_SECRET_KEY:", !!process.env.CLERK_SECRET_KEY);
-console.log("CLERK_PUBLISHABLE_KEY:", !!process.env.CLERK_PUBLISHABLE_KEY);
-console.log("UPSTASH_REDIS_REST_URL", process.env.UPSTASH_REDIS_REST_URL);
-console.log(
-  "UPSTASH_REDIS_REST_TOKEN",
-  process.env.UPSTASH_REDIS_REST_TOKEN?.slice(0, 4) + "...",
-);
-
 // -------------------- Public Routes --------------------
+console.log("📍 Setting up public routes...");
+
 // -------------------- Warm-up endpoint --------------------
 app.get("/api/wake", (req, res) => {
   res.status(200).json({
@@ -127,6 +136,8 @@ app.use("/api/category-xp", categoryXpRoute);
 app.use("/api/challenges", challengesRoute);
 app.use("/api/user-challenges", userChallengesRoute);
 app.use("/api/upload", uploadRoute);
+
+console.log("✅ All routes configured successfully");
 
 // -------------------- Error Handler --------------------
 app.use((err, req, res, next) => {
@@ -184,4 +195,5 @@ async function startServer() {
   }
 }
 
+console.log("🎯 Calling startServer()...");
 startServer();

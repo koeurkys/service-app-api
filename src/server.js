@@ -144,18 +144,22 @@ app.use((err, req, res, next) => {
 async function startServer() {
   try {
     console.log("🔧 Starting server initialization...");
+    console.log(`📅 Time: ${new Date().toISOString()}`);
     
-    // Timeout de 30 secondes pour l'initialisation de la BD
+    // Timeout de 30 secondes SEULEMENT pour l'initialisation de la BD
     const dbInitTimeout = new Promise((_, reject) => 
       setTimeout(() => reject(new Error("Database initialization timeout (30s)")), 30000)
     );
     
+    console.log("⏳ Waiting for database initialization...");
     await Promise.race([initDB(), dbInitTimeout]);
+    console.log("✅ Database ready!");
     
     // ✅ IMPORTANT : Bind sur 0.0.0.0 pour Render
     const server = app.listen(PORT, "0.0.0.0", () => {
       console.log(`🚀 Server running on 0.0.0.0:${PORT}`);
       console.log(`✅ Health check: http://localhost:${PORT}/api/health`);
+      console.log(`📅 Server started at: ${new Date().toISOString()}`);
     });
     
     // Gestion des erreurs du serveur
@@ -164,16 +168,20 @@ async function startServer() {
       process.exit(1);
     });
     
+    // Graceful shutdown
+    process.on("SIGTERM", () => {
+      console.log("📢 SIGTERM signal received: closing HTTP server");
+      server.close(() => {
+        console.log("✅ HTTP server closed");
+        process.exit(0);
+      });
+    });
+    
   } catch (err) {
     console.error("❌ Failed to start server:", err.message || err);
+    console.error("Stack trace:", err.stack);
     process.exit(1);
   }
 }
-
-// Ajouter un timeout global pour le process
-setTimeout(() => {
-  console.error("❌ Server startup timeout - exiting");
-  process.exit(1);
-}, 60000); // 60 secondes
 
 startServer();

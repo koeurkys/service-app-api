@@ -1,4 +1,5 @@
 import { sql } from "../config/db.js";
+import { io } from "../server.js";
 
 // Récupérer la conversation entre deux utilisateurs
 export const getConversation = async (req, res) => {
@@ -77,7 +78,12 @@ export const sendMessage = async (req, res) => {
       RETURNING id, sender_id, receiver_id, content, is_read, created_at
     `;
 
-    res.status(201).json(message[0]);
+    // ✅ Émettre le nouveau message via Socket.IO au récepteur
+    const messageData = message[0];
+    io.emit(`message-${receiver_id}`, messageData);
+    console.log(`📨 Message émis au récepteur ${receiver_id}`);
+
+    res.status(201).json(messageData);
   } catch (err) {
     console.error("Erreur envoi message:", err);
     res.status(500).json({ error: "Erreur serveur" });

@@ -12,6 +12,8 @@ import fs from "fs";
 import multer from "multer";
 import { fileURLToPath } from "url";
 import cloudinary from "cloudinary";
+import { Server } from "socket.io";
+import http from "http";
 
 console.log("2️⃣ [INIT] Basic imports completed");
 
@@ -87,6 +89,27 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 5001;
+
+// ✅ Créer un HTTP server pour Socket.IO
+const server = http.createServer(app);
+
+// ✅ Initialiser Socket.IO
+export const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  },
+  transports: ["websocket", "polling"]
+});
+
+// Connection Socket.IO
+io.on("connection", (socket) => {
+  console.log(`✅ User connected: ${socket.id}`);
+  
+  socket.on("disconnect", () => {
+    console.log(`❌ User disconnected: ${socket.id}`);
+  });
+});
 
 console.log("📦 Express app initialized");
 console.log(`🔧 Configuring middleware...`);
@@ -197,8 +220,9 @@ async function startServer() {
     console.log("✅ Database ready!");
     
     // ✅ IMPORTANT : Bind sur 0.0.0.0 pour Render
-    const server = app.listen(PORT, "0.0.0.0", () => {
+    server.listen(PORT, "0.0.0.0", () => {
       console.log(`🚀 Server running on 0.0.0.0:${PORT}`);
+      console.log(`🌐 WebSocket enabled`);
       console.log(`✅ Health check: http://localhost:${PORT}/api/health`);
       console.log(`📅 Server started at: ${new Date().toISOString()}`);
       

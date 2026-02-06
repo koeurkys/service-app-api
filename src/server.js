@@ -62,7 +62,11 @@ app.use(compression());
 
 // -------------------- Cron Job --------------------
 if (process.env.NODE_ENV === "production") {
+  console.log("🕐 Starting cron job...");
   job.start();
+  console.log("✅ Cron job started - ping every 14 minutes");
+} else {
+  console.log("⏭️ Cron job skipped (dev mode)");
 }
 
 // -------------------- Logs --------------------

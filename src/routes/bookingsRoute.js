@@ -6,13 +6,14 @@ import {
   updateBooking,
   deleteBooking,
 } from "../controllers/bookingsController.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.get("/", getBookings);
-router.get("/:id", getBookingById);
-router.post("/", createBooking);
-router.put("/:id", updateBooking);
-router.delete("/:id", deleteBooking);
+router.get("/", requireAuth, getBookings);
+router.get("/:id", requireAuth, getBookingById);
+router.post("/", requireAuth, createBooking);
+router.put("/:id", requireAuth, updateBooking);
+router.delete("/:id", requireAuth, deleteBooking);
 
 export default router;

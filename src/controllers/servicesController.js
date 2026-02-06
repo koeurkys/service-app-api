@@ -122,7 +122,7 @@ export async function createService(req, res) {
       });
     }
 
-    // ✅ Récupérer category_id depuis le SLUG (pas name)
+    // ✅ Récupérer category_id depuis le slug
     const categoryResult = await sql`
       SELECT id FROM categories WHERE slug = ${category}
     `;
@@ -221,11 +221,11 @@ export async function updateService(req, res) {
       postal_code,
     } = req.body;
 
-    // ✅ Récupère le category_id depuis le nom
+    // ✅ Récupère le category_id depuis le slug
     let category_id = null;
     if (category) {
       const categoryResult = await sql`
-        SELECT id FROM categories WHERE name = ${category}
+        SELECT id FROM categories WHERE slug = ${category}
       `;
       if (categoryResult.length > 0) {
         category_id = categoryResult[0].id;

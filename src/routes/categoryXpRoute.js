@@ -6,13 +6,14 @@ import {
   updateCategoryXp,
   deleteCategoryXp,
 } from "../controllers/categoryXpController.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.get("/", getCategoryXp);
-router.get("/:userId", getCategoryXpByUserId);
-router.post("/", createCategoryXp);
-router.put("/:id", updateCategoryXp);
-router.delete("/:id", deleteCategoryXp);
+router.get("/", requireAuth, getCategoryXp);
+router.get("/:userId", requireAuth, getCategoryXpByUserId);
+router.post("/", requireAuth, createCategoryXp);
+router.put("/:id", requireAuth, updateCategoryXp);
+router.delete("/:id", requireAuth, deleteCategoryXp);
 
 export default router;

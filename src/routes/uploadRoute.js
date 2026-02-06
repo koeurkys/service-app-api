@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs";
 import cloudinary from "cloudinary";
 import { getImageService } from "../controllers/uploadController.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -16,6 +17,6 @@ cloudinary.v2.config({
 });
 
 // POST /api/upload
-router.post("/", upload.single("file"), getImageService);
+router.post("/", requireAuth, upload.single("file"), getImageService);
 
 export default router;

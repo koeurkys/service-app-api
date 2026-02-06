@@ -97,31 +97,25 @@ app.get("/api", protectedMiddlewares, (req, res) => {
   res.json({ userId: req.auth.userId });
 });
 
+// -------------------- Routes Endpoints --------------------
 app.use("/api/sync-user", syncRoute);
 
+// ✅ Routes publiques (GET seulement)
 app.use("/api/ranking", rankingRoute);
-app.use("/api/users", protectedMiddlewares, usersRoute);
-app.use("/api/categories", protectedMiddlewares, categoriesRoute);
-app.use("/api/profiles", protectedMiddlewares, profilesRoute);
-app.use("/api/services", protectedMiddlewares, servicesRoute);
-app.use("/api/bookings", protectedMiddlewares, bookingsRoute);
-app.use("/api/reviews", protectedMiddlewares, reviewsRoute);
-app.use("/api/badges", protectedMiddlewares, badgesRoute);
-app.use("/api/user-badges", protectedMiddlewares, userBadgesRoute);
-app.use("/api/category-xp", protectedMiddlewares, categoryXpRoute);
-app.use("/api/challenges", protectedMiddlewares, challengesRoute);
-app.use("/api/user-challenges", protectedMiddlewares, userChallengesRoute);
+app.use("/api/categories", categoriesRoute);
 
-// -------------------- Cloudinary Upload Endpoint --------------------
-
-// Config Cloudinary depuis CLOUDINARY_URL
-cloudinary.v2.config({
-  cloudinary_url: process.env.CLOUDINARY_URL,
-});
-
-const upload = multer({ dest: "uploads/" });
-
-app.use("/api/upload", protectedMiddlewares, uploadRoute); // ✅
+// ✅ Routes protégées (les middlewares sont appliqués à chaque route individuellement)
+app.use("/api/users", usersRoute);
+app.use("/api/profiles", profilesRoute);
+app.use("/api/services", servicesRoute);
+app.use("/api/bookings", bookingsRoute);
+app.use("/api/reviews", reviewsRoute);
+app.use("/api/badges", badgesRoute);
+app.use("/api/user-badges", userBadgesRoute);
+app.use("/api/category-xp", categoryXpRoute);
+app.use("/api/challenges", challengesRoute);
+app.use("/api/user-challenges", userChallengesRoute);
+app.use("/api/upload", uploadRoute);
 
 // -------------------- Error Handler --------------------
 app.use((err, req, res, next) => {

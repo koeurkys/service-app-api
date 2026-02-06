@@ -6,13 +6,14 @@ import {
   updateBadge,
   deleteBadge,
 } from "../controllers/badgesController.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
 router.get("/", getBadges);
 router.get("/:id", getBadgeById);
-router.post("/", createBadge);
-router.put("/:id", updateBadge);
-router.delete("/:id", deleteBadge);
+router.post("/", requireAuth, createBadge);
+router.put("/:id", requireAuth, updateBadge);
+router.delete("/:id", requireAuth, deleteBadge);
 
 export default router;

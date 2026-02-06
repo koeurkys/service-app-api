@@ -5,12 +5,13 @@ import {
   createUserBadge,
   deleteUserBadge,
 } from "../controllers/userBadgesController.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.get("/", getUserBadges);
-router.get("/:userId", getUserBadgesByUserId);
-router.post("/", createUserBadge);
-router.delete("/:id", deleteUserBadge);
+router.get("/", requireAuth, getUserBadges);
+router.get("/:userId", requireAuth, getUserBadgesByUserId);
+router.post("/", requireAuth, createUserBadge);
+router.delete("/:id", requireAuth, deleteUserBadge);
 
 export default router;

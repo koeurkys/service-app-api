@@ -35,6 +35,7 @@ export async function initDB() {
       CREATE TABLE IF NOT EXISTS categories (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL UNIQUE,
+        slug VARCHAR(100) UNIQUE,
         description TEXT,
         icon VARCHAR(100),
         color VARCHAR(7),
@@ -43,6 +44,7 @@ export async function initDB() {
     `;
 
     await sql`CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_categories_slug ON categories(slug)`;
 
     // =========================
     // PROFILES

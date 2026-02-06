@@ -1,5 +1,15 @@
 import { sql } from "../config/db.js";
 
+// ✅ Fonction utilitaire pour générer un slug
+function generateSlug(name) {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Supprime les caractères spéciaux
+    .replace(/\s+/g, '_')      // Remplace les espaces par des underscores
+    .replace(/_+/g, '_');      // Élimine les underscores multiples
+}
+
 export async function getAllCategories(req, res) {
   try {
     const categories = await sql`
@@ -20,9 +30,11 @@ export async function createCategory(req, res) {
       return res.status(400).json({ message: "Name is required" });
     }
 
+    const slug = generateSlug(name);
+
     const result = await sql`
-      INSERT INTO categories (name)
-      VALUES (${name})
+      INSERT INTO categories (name, slug)
+      VALUES (${name}, ${slug})
       RETURNING *
     `;
 

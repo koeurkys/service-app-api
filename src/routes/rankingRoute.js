@@ -3,6 +3,7 @@ import {
   getRanking,
   getMyRank,
 } from "../controllers/rankingController.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -16,6 +17,6 @@ router.get("/", getRanking);
   GET /api/ranking/me
   rang perso
 */
-router.get("/me", getMyRank);
+router.get("/me", requireAuth, getMyRank);
 
 export default router;

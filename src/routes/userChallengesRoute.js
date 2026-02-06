@@ -6,13 +6,14 @@ import {
   updateUserChallenge,
   deleteUserChallenge,
 } from "../controllers/userChallengesController.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.get("/", getUserChallenges);
-router.get("/:userId", getUserChallengesByUserId);
-router.post("/", createUserChallenge);
-router.put("/:id", updateUserChallenge);
-router.delete("/:id", deleteUserChallenge);
+router.get("/", requireAuth, getUserChallenges);
+router.get("/:userId", requireAuth, getUserChallengesByUserId);
+router.post("/", requireAuth, createUserChallenge);
+router.put("/:id", requireAuth, updateUserChallenge);
+router.delete("/:id", requireAuth, deleteUserChallenge);
 
 export default router;

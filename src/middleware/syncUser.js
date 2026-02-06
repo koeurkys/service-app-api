@@ -1,5 +1,5 @@
 import { sql } from "../config/db.js";
-import { clerkClient } from "@clerk/express";
+import { clerkClient } from "@clerk/clerk-sdk-node";
 
 export async function syncUser(req, res, next) {
   try {

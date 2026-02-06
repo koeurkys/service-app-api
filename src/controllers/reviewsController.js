@@ -30,6 +30,8 @@ export async function createReview(req, res) {
   try {
     const { service_id, booking_id, reviewer_id, provider_id, rating, comment, is_verified } = req.body;
 
+    console.log("📚 createReview called with:", { service_id, reviewer_id, provider_id, rating });
+
     if (!service_id || !reviewer_id || !provider_id || !rating) {
       return res.status(400).json({ message: "Missing required fields" });
     }
@@ -40,25 +42,29 @@ export async function createReview(req, res) {
       WHERE service_id = ${service_id} AND reviewer_id = ${reviewer_id}
     `;
 
+    console.log("🔍 Existing reviews found:", existingReview.length, existingReview);
+
     let review;
     if (existingReview.length > 0) {
       // ✅ Mettre à jour la note existante
-      console.log("🔄 Mise à jour de la note existante:", existingReview[0].id);
+      console.log("🔄 Updating existing review:", existingReview[0].id, "from rating", existingReview[0].rating, "to", rating);
       const updated = await sql`
         UPDATE reviews
         SET rating = ${rating}, comment = ${comment}, updated_at = CURRENT_TIMESTAMP
         WHERE id = ${existingReview[0].id}
         RETURNING *
       `;
+      console.log("✅ Updated review:", updated[0]);
       review = updated[0];
     } else {
       // ✅ Créer une nouvelle note
-      console.log("✨ Création d'une nouvelle note pour le service:", service_id);
+      console.log("✨ Creating new review for service", service_id, "by reviewer", reviewer_id);
       const created = await sql`
         INSERT INTO reviews(service_id, booking_id, reviewer_id, provider_id, rating, comment, is_verified)
         VALUES (${service_id}, ${booking_id}, ${reviewer_id}, ${provider_id}, ${rating}, ${comment}, ${is_verified})
         RETURNING *
       `;
+      console.log("✅ Created review:", created[0]);
       review = created[0];
     }
 
@@ -69,6 +75,8 @@ export async function createReview(req, res) {
       FROM reviews
       WHERE service_id = ${service_id}
     `;
+
+    console.log("📊 Average rating for service:", avgRating[0]);
 
     if (avgRating.length > 0 && avgRating[0].average_rating) {
       await sql`
@@ -86,6 +94,8 @@ export async function createReview(req, res) {
       FROM reviews
       WHERE provider_id = ${provider_id}
     `;
+
+    console.log("📊 Average rating for provider:", providerAvgRating[0]);
 
     if (providerAvgRating.length > 0 && providerAvgRating[0].rating_avg) {
       await sql`

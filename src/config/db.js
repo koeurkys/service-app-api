@@ -1,10 +1,16 @@
 import { neon } from "@neondatabase/serverless";
 import "dotenv/config";
 
+if (!process.env.DATABASE_URL) {
+  console.error("❌ DATABASE_URL is not defined!");
+  process.exit(1);
+}
+
 export const sql = neon(process.env.DATABASE_URL);
 
 export async function initDB() {
   try {
+    console.log("📡 Initializing database...");
     // =========================
     // USERS
     // =========================
@@ -240,9 +246,9 @@ export async function initDB() {
       )
     `;
 
-    console.log("Database initialized successfully");
+    console.log("✅ Database initialized successfully");
   } catch (error) {
-    console.log("Error initializing DB", error);
+    console.error("❌ Error initializing DB:", error.message || error);
     process.exit(1);
   }
 }

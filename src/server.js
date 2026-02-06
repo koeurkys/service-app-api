@@ -69,6 +69,17 @@ if (process.env.NODE_ENV === "production") {
 }
 
 // -------------------- Logs --------------------
+console.log("\n=== Environment Check ===");
+console.log("NODE_ENV:", process.env.NODE_ENV || "development");
+console.log("DATABASE_URL:", process.env.DATABASE_URL ? "✅ SET" : "❌ MISSING");
+console.log("CLERK_SECRET_KEY:", !!process.env.CLERK_SECRET_KEY ? "✅ SET" : "❌ MISSING");
+console.log("CLERK_PUBLISHABLE_KEY:", !!process.env.CLERK_PUBLISHABLE_KEY ? "✅ SET" : "❌ MISSING");
+console.log("CLOUDINARY_URL:", !!process.env.CLOUDINARY_URL ? "✅ SET" : "❌ MISSING");
+console.log("UPSTASH_REDIS_REST_URL:", process.env.UPSTASH_REDIS_REST_URL ? "✅ SET" : "⚠️  OPTIONAL");
+console.log("PORT:", PORT);
+console.log("=== End Check ===\n");
+
+// -------------------- Logs --------------------
 console.log("CLERK_SECRET_KEY:", !!process.env.CLERK_SECRET_KEY);
 console.log("CLERK_PUBLISHABLE_KEY:", !!process.env.CLERK_PUBLISHABLE_KEY);
 console.log("UPSTASH_REDIS_REST_URL", process.env.UPSTASH_REDIS_REST_URL);
@@ -131,16 +142,38 @@ app.use((err, req, res, next) => {
 // -------------------- Start Server --------------------
 // -------------------- Start Server --------------------
 async function startServer() {
-  await initDB();
-  
-  // ✅ IMPORTANT : Bind sur 0.0.0.0 pour Render
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Server running on 0.0.0.0:${PORT}`);
-    console.log(`✅ Health check: http://localhost:${PORT}/api/health`);
-  });
+  try {
+    console.log("🔧 Starting server initialization...");
+    
+    // Timeout de 30 secondes pour l'initialisation de la BD
+    const dbInitTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("Database initialization timeout (30s)")), 30000)
+    );
+    
+    await Promise.race([initDB(), dbInitTimeout]);
+    
+    // ✅ IMPORTANT : Bind sur 0.0.0.0 pour Render
+    const server = app.listen(PORT, "0.0.0.0", () => {
+      console.log(`🚀 Server running on 0.0.0.0:${PORT}`);
+      console.log(`✅ Health check: http://localhost:${PORT}/api/health`);
+    });
+    
+    // Gestion des erreurs du serveur
+    server.on("error", (err) => {
+      console.error("❌ Server error:", err.message);
+      process.exit(1);
+    });
+    
+  } catch (err) {
+    console.error("❌ Failed to start server:", err.message || err);
+    process.exit(1);
+  }
 }
 
-startServer().catch((err) => {
-  console.error("❌ Failed to start server:", err);
+// Ajouter un timeout global pour le process
+setTimeout(() => {
+  console.error("❌ Server startup timeout - exiting");
   process.exit(1);
-});
+}, 60000); // 60 secondes
+
+startServer();

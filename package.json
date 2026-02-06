@@ -4,7 +4,10 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "check-env": "node check-env.js",
+    "build": "npm run check-env",
+    "verify": "node check-env.js && npm run start"
   },
   "keywords": [],
   "type": "module",

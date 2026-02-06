@@ -1,6 +1,8 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+console.log("1️⃣ [INIT] dotenv loaded");
+
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -10,13 +12,27 @@ import fs from "fs";
 import multer from "multer";
 import { fileURLToPath } from "url";
 import cloudinary from "cloudinary";
+
+console.log("2️⃣ [INIT] Basic imports completed");
+
 import { initDB } from "./config/db.js";
+console.log("3️⃣ [INIT] initDB imported");
+
 import rateLimiter from "./middleware/rateLimiter.js";
+console.log("4️⃣ [INIT] rateLimiter imported");
+
 import { clerkMiddleware } from "@clerk/express";
+console.log("5️⃣ [INIT] clerkMiddleware imported");
+
 import { syncUser } from "./middleware/syncUser.js";
+console.log("6️⃣ [INIT] syncUser imported");
+
 import syncRoute from "./routes/syncRoute.js";
+console.log("7️⃣ [INIT] syncRoute imported");
 
 import rankingRoute from "./routes/rankingRoute.js";
+console.log("8️⃣ [INIT] rankingRoute imported");
+
 import usersRoute from "./routes/usersRoute.js";
 import categoriesRoute from "./routes/categoriesRoute.js";
 import profilesRoute from "./routes/profilesRoute.js";
@@ -30,8 +46,15 @@ import challengesRoute from "./routes/challengesRoute.js";
 import userChallengesRoute from "./routes/userChallengesRoute.js";
 import uploadRoute from "./routes/uploadRoute.js";
 
-import job from "./config/cron.js";
+console.log("9️⃣ [INIT] All routes imported");
+
+// ⚠️ N'importer le cron job QUE PLUS TARD (non-bloquant)
+let job = null;
+
+console.log("🔟 [INIT] Cron job deferment set");
+
 import { Redis } from "@upstash/redis";
+console.log("1️⃣1️⃣ [INIT] Redis imported");
 
 // -------------------- Check Upstash --------------------
 async function checkUpstash() {
@@ -75,14 +98,19 @@ app.use(compression());
 
 console.log("✅ Global middlewares configured");
 
-// -------------------- Cron Job --------------------
-if (process.env.NODE_ENV === "production") {
-  console.log("🕐 Starting cron job...");
-  job.start();
-  console.log("✅ Cron job started - ping every 14 minutes");
-} else {
-  console.log("⏭️ Cron job skipped (dev mode)");
+// ⚠️ IMPORTER LE CRON JOB PLUS TARD (après l'initialisation des autres choses)
+async function initializeCronJob() {
+  try {
+    console.log("📥 Loading cron job...");
+    const cronModule = await import("./config/cron.js");
+    job = cronModule.default;
+    console.log("✅ Cron job loaded");
+  } catch (err) {
+    console.error("❌ Failed to load cron job:", err.message);
+  }
 }
+
+// NOTE: Cron job sera démarré dans startServer() une fois chargé
 
 // -------------------- Environment Check --------------------
 console.log("\n=== 🔍 Environment Variables ===");
@@ -171,6 +199,21 @@ async function startServer() {
       console.log(`🚀 Server running on 0.0.0.0:${PORT}`);
       console.log(`✅ Health check: http://localhost:${PORT}/api/health`);
       console.log(`📅 Server started at: ${new Date().toISOString()}`);
+      
+      // ⏳ Charger et démarrer le cron job APRÈS le démarrage du serveur
+      initializeCronJob().then(() => {
+        if (job) {
+          if (process.env.NODE_ENV === "production") {
+            console.log("🕐 Starting cron job...");
+            job.start();
+            console.log("✅ Cron job started - ping every 14 minutes");
+          } else {
+            console.log("⏭️ Cron job skipped (dev mode)");
+          }
+        }
+      }).catch(err => {
+        console.warn("⚠️ Failed to setup cron job:", err.message);
+      });
     });
     
     // Gestion des erreurs du serveur

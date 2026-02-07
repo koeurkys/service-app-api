@@ -110,6 +110,27 @@ export async function createChallengeAdmin(req, res) {
       });
     }
 
+    // Valider requirement_type
+    const validRequirementTypes = [
+      "none",
+      "sell_services",
+      "buy_services",
+      "book_services",
+      "publish_services",
+      "note_services",
+      "exchange_objects",
+      "share_app",
+      "collect_badges",
+      "reliability_score",
+      "taxi_trip",
+      "global_rating"
+    ];
+    if (requirement_type && !validRequirementTypes.includes(requirement_type)) {
+      return res.status(400).json({ 
+        message: `Invalid requirement_type. Must be one of: ${validRequirementTypes.join(", ")}` 
+      });
+    }
+
     // Valider requirement_service_type
     const validServiceTypes = ["service", "booking", "both"];
     const serviceType = requirement_service_type && validServiceTypes.includes(requirement_service_type) 
@@ -189,6 +210,29 @@ export async function updateChallengeAdmin(req, res) {
       if (!validDifficulties.includes(difficulty)) {
         return res.status(400).json({ 
           message: `Invalid difficulty. Must be one of: ${validDifficulties.join(", ")}` 
+        });
+      }
+    }
+
+    // Valider requirement_type
+    if (requirement_type) {
+      const validRequirementTypes = [
+        "none",
+        "sell_services",
+        "buy_services",
+        "book_services",
+        "publish_services",
+        "note_services",
+        "exchange_objects",
+        "share_app",
+        "collect_badges",
+        "reliability_score",
+        "taxi_trip",
+        "global_rating"
+      ];
+      if (!validRequirementTypes.includes(requirement_type)) {
+        return res.status(400).json({ 
+          message: `Invalid requirement_type. Must be one of: ${validRequirementTypes.join(", ")}` 
         });
       }
     }

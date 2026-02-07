@@ -36,6 +36,7 @@ export async function getServiceById(req, res) {
       SELECT 
         s.*,
         c.name AS category_name,
+        c.slug AS category_slug,
         u.name AS username,
         u.email,
         u.avatar_url
@@ -222,11 +223,12 @@ export async function updateService(req, res) {
       title,
       description,
       price,
-      category, // ✅ Reçoit le NOM de la catégorie
+      category, // ✅ SLUG envoyé par le front
       status,
       is_hourly,
       type,
       image_url,
+      unit_type,
       latitude,
       longitude,
       address,
@@ -255,6 +257,7 @@ export async function updateService(req, res) {
         status = COALESCE(${status}, status),
         is_hourly = COALESCE(${is_hourly}, is_hourly),
         type = COALESCE(${type}, type),
+        unit_type = COALESCE(${unit_type}, unit_type),
         latitude = COALESCE(${latitude}, latitude),
         longitude = COALESCE(${longitude}, longitude),
         address = COALESCE(${address}, address),

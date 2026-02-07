@@ -199,7 +199,11 @@ export async function deleteChallengeAdmin(req, res) {
 /* ===================================================== */
 export async function isAdminMiddleware(req, res, next) {
   try {
-    const userId = req.user?.id;
+    const userId = req.userId; // Vient de requireAuth middleware
+    
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     
     const user = await sql`
       SELECT role FROM users WHERE id = ${userId}

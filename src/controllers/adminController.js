@@ -90,6 +90,15 @@ export async function createChallengeAdmin(req, res) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
+    // Convertir en nombres
+    const xpValue = parseInt(xp_reward);
+    const daysValue = duration_days ? parseInt(duration_days) : 7;
+    const catId = category_id ? parseInt(category_id) : null;
+
+    if (isNaN(xpValue)) {
+      return res.status(400).json({ message: "xp_reward must be a number" });
+    }
+
     const challenge = await sql`
       INSERT INTO challenges(
         title, 
@@ -104,10 +113,10 @@ export async function createChallengeAdmin(req, res) {
       VALUES (
         ${title}, 
         ${description}, 
-        ${xp_reward}, 
-        ${category_id || null}, 
+        ${xpValue}, 
+        ${catId}, 
         ${difficulty || "medium"}, 
-        ${duration_days || 7}, 
+        ${daysValue}, 
         ${requirement_type || null}, 
         ${requirement_value || null}
       )
@@ -117,8 +126,9 @@ export async function createChallengeAdmin(req, res) {
     console.log(`✅ Challenge created: ${title}`);
     res.status(201).json(challenge[0]);
   } catch (error) {
-    console.log("❌ Error creating challenge", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.log("❌ Error creating challenge:", error.message);
+    console.log("Full error:", error);
+    res.status(500).json({ message: "Failed to create challenge: " + error.message });
   }
 }
 
@@ -139,15 +149,20 @@ export async function updateChallengeAdmin(req, res) {
       requirement_value 
     } = req.body;
 
+    // Convertir les nombres si fournis
+    const xpValue = xp_reward !== undefined ? parseInt(xp_reward) : undefined;
+    const daysValue = duration_days ? parseInt(duration_days) : undefined;
+    const catId = category_id ? parseInt(category_id) : undefined;
+
     const updated = await sql`
       UPDATE challenges
       SET 
         title = COALESCE(${title}, title),
         description = COALESCE(${description}, description),
-        xp_reward = COALESCE(${xp_reward}, xp_reward),
-        category_id = COALESCE(${category_id}, category_id),
+        xp_reward = COALESCE(${xpValue}, xp_reward),
+        category_id = COALESCE(${catId}, category_id),
         difficulty = COALESCE(${difficulty}, difficulty),
-        duration_days = COALESCE(${duration_days}, duration_days),
+        duration_days = COALESCE(${daysValue}, duration_days),
         requirement_type = COALESCE(${requirement_type}, requirement_type),
         requirement_value = COALESCE(${requirement_value}, requirement_value)
       WHERE id = ${id}
@@ -161,8 +176,9 @@ export async function updateChallengeAdmin(req, res) {
     console.log(`✅ Challenge updated: ${updated[0].title}`);
     res.status(200).json(updated[0]);
   } catch (error) {
-    console.log("❌ Error updating challenge", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.log("❌ Error updating challenge:", error.message);
+    console.log("Full error:", error);
+    res.status(500).json({ message: "Failed to update challenge: " + error.message });
   }
 }
 

@@ -107,6 +107,7 @@ export async function initDB() {
         price DECIMAL(10, 2) NOT NULL CHECK (price > 0),
         category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        unit_type VARCHAR(50),
         latitude DECIMAL(10, 8),
         longitude DECIMAL(11, 8),
         address VARCHAR(255),

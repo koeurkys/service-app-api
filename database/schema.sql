@@ -252,6 +252,7 @@ export async function initDB() {
         duration_days INTEGER DEFAULT 7,
         requirement_type VARCHAR(100),
         requirement_value INTEGER,
+        requirement_service_type VARCHAR(20) DEFAULT 'both' CHECK (requirement_service_type IN ('service', 'booking', 'both')),
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

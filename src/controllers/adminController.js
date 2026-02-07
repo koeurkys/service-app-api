@@ -83,7 +83,8 @@ export async function createChallengeAdmin(req, res) {
       difficulty, 
       duration_days, 
       requirement_type, 
-      requirement_value 
+      requirement_value,
+      requirement_service_type
     } = req.body;
 
     if (!title || !description || xp_reward === undefined) {
@@ -94,6 +95,7 @@ export async function createChallengeAdmin(req, res) {
     const xpValue = parseInt(xp_reward);
     const daysValue = duration_days ? parseInt(duration_days) : 7;
     const catId = category_id ? parseInt(category_id) : null;
+    const reqValue = requirement_value ? parseInt(requirement_value) : null;
 
     if (isNaN(xpValue)) {
       return res.status(400).json({ message: "xp_reward must be a number" });
@@ -107,6 +109,12 @@ export async function createChallengeAdmin(req, res) {
       });
     }
 
+    // Valider requirement_service_type
+    const validServiceTypes = ["service", "booking", "both"];
+    const serviceType = requirement_service_type && validServiceTypes.includes(requirement_service_type) 
+      ? requirement_service_type 
+      : "both";
+
     const challenge = await sql`
       INSERT INTO challenges(
         title, 
@@ -116,7 +124,8 @@ export async function createChallengeAdmin(req, res) {
         difficulty, 
         duration_days, 
         requirement_type, 
-        requirement_value
+        requirement_value,
+        requirement_service_type
       )
       VALUES (
         ${title}, 
@@ -126,7 +135,8 @@ export async function createChallengeAdmin(req, res) {
         ${difficulty || "moyen"}, 
         ${daysValue}, 
         ${requirement_type || null}, 
-        ${requirement_value || null}
+        ${reqValue || null},
+        ${serviceType}
       )
       RETURNING *
     `;
@@ -154,13 +164,15 @@ export async function updateChallengeAdmin(req, res) {
       difficulty, 
       duration_days, 
       requirement_type, 
-      requirement_value 
+      requirement_value,
+      requirement_service_type
     } = req.body;
 
     // Convertir les nombres si fournis
     const xpValue = xp_reward !== undefined ? parseInt(xp_reward) : undefined;
     const daysValue = duration_days ? parseInt(duration_days) : undefined;
     const catId = category_id ? parseInt(category_id) : undefined;
+    const reqValue = requirement_value !== undefined ? parseInt(requirement_value) : undefined;
 
     // Valider la difficulté
     if (difficulty) {
@@ -172,6 +184,12 @@ export async function updateChallengeAdmin(req, res) {
       }
     }
 
+    // Valider requirement_service_type
+    const validServiceTypes = ["service", "booking", "both"];
+    const serviceType = requirement_service_type && validServiceTypes.includes(requirement_service_type)
+      ? requirement_service_type
+      : undefined;
+
     const updated = await sql`
       UPDATE challenges
       SET 
@@ -182,7 +200,8 @@ export async function updateChallengeAdmin(req, res) {
         difficulty = COALESCE(${difficulty}, difficulty),
         duration_days = COALESCE(${daysValue}, duration_days),
         requirement_type = COALESCE(${requirement_type}, requirement_type),
-        requirement_value = COALESCE(${requirement_value}, requirement_value)
+        requirement_value = COALESCE(${reqValue}, requirement_value),
+        requirement_service_type = COALESCE(${serviceType}, requirement_service_type)
       WHERE id = ${id}
       RETURNING *
     `;

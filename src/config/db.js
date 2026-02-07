@@ -210,11 +210,22 @@ export async function initDB() {
         duration_days INTEGER DEFAULT 7,
         requirement_type VARCHAR(100),
         requirement_value INTEGER,
+        requirement_service_type VARCHAR(20) DEFAULT 'both' CHECK (requirement_service_type IN ('service', 'booking', 'both')),
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
+
+    // Add requirement_service_type column if it doesn't exist
+    try {
+      await sql`
+        ALTER TABLE challenges
+        ADD COLUMN IF NOT EXISTS requirement_service_type VARCHAR(20) DEFAULT 'both' CHECK (requirement_service_type IN ('service', 'booking', 'both'))
+      `;
+    } catch (err) {
+      console.log("⚠️ Warning: Could not alter challenges table:", err.message);
+    }
 
     // =========================
     // USER_CHALLENGES

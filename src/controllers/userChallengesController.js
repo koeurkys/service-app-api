@@ -1,5 +1,135 @@
 import { sql } from "../config/db.js";
 
+/**
+ * Vérifier si un utilisateur a complété les conditions d'un défi
+ */
+async function verifyChallengeCompletion(userId, challenge) {
+  const {
+    requirement_type,
+    requirement_value,
+    requirement_service_type,
+    requirement_categories,
+  } = challenge;
+
+  // Si pas de condition, c'est automatiquement complété
+  if (requirement_type === "none") {
+    return true;
+  }
+
+  try {
+    // Parser les catégories si c'est un JSON string
+    let categoryIds = [];
+    if (requirement_categories) {
+      if (typeof requirement_categories === "string") {
+        categoryIds = JSON.parse(requirement_categories);
+      } else if (Array.isArray(requirement_categories)) {
+        categoryIds = requirement_categories;
+      }
+    }
+
+    let count = 0;
+
+    // ======== ACTIONS ========
+    if (requirement_type === "publish_services") {
+      // Compter les services publiés
+      if (categoryIds.length > 0) {
+        const result = await sql`
+          SELECT COUNT(*) as cnt 
+          FROM services 
+          WHERE user_id = ${userId} 
+          AND status = 'active' 
+          AND category_id = ANY(${categoryIds})
+        `;
+        count = parseInt(result[0].cnt) || 0;
+      } else {
+        const result = await sql`
+          SELECT COUNT(*) as cnt 
+          FROM services 
+          WHERE user_id = ${userId} 
+          AND status = 'active'
+        `;
+        count = parseInt(result[0].cnt) || 0;
+      }
+    } 
+    else if (requirement_type === "sell_services") {
+      // Compter les services complétés en tant que prestataire
+      if (categoryIds.length > 0) {
+        const result = await sql`
+          SELECT COUNT(*) as cnt 
+          FROM bookings b
+          JOIN services s ON b.service_id = s.id
+          WHERE b.provider_id = ${userId} 
+          AND b.status = 'completed'
+          AND s.category_id = ANY(${categoryIds})
+        `;
+        count = parseInt(result[0].cnt) || 0;
+      } else {
+        const result = await sql`
+          SELECT COUNT(*) as cnt 
+          FROM bookings 
+          WHERE provider_id = ${userId} 
+          AND status = 'completed'
+        `;
+        count = parseInt(result[0].cnt) || 0;
+      }
+    } 
+    else if (requirement_type === "buy_services") {
+      // Compter les services complétés en tant que client
+      if (categoryIds.length > 0) {
+        const result = await sql`
+          SELECT COUNT(*) as cnt 
+          FROM bookings b
+          JOIN services s ON b.service_id = s.id
+          WHERE b.client_id = ${userId} 
+          AND b.status = 'completed'
+          AND s.category_id = ANY(${categoryIds})
+        `;
+        count = parseInt(result[0].cnt) || 0;
+      } else {
+        const result = await sql`
+          SELECT COUNT(*) as cnt 
+          FROM bookings 
+          WHERE client_id = ${userId} 
+          AND status = 'completed'
+        `;
+        count = parseInt(result[0].cnt) || 0;
+      }
+    }
+    else if (requirement_type === "book_services") {
+      // Compter les bookings créées par l'utilisateur (en tant que client)
+      if (categoryIds.length > 0) {
+        const result = await sql`
+          SELECT COUNT(*) as cnt 
+          FROM bookings b
+          JOIN services s ON b.service_id = s.id
+          WHERE b.client_id = ${userId} 
+          AND b.status != 'cancelled'
+          AND s.category_id = ANY(${categoryIds})
+        `;
+        count = parseInt(result[0].cnt) || 0;
+      } else {
+        const result = await sql`
+          SELECT COUNT(*) as cnt 
+          FROM bookings 
+          WHERE client_id = ${userId} 
+          AND status != 'cancelled'
+        `;
+        count = parseInt(result[0].cnt) || 0;
+      }
+    }
+
+    // Vérifier que le nombre minimum est atteint
+    if (requirement_value && count < requirement_value) {
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error verifying challenge completion:", error);
+    return false;
+  }
+}
+
 export async function getUserChallenges(req, res) {
   try {
     const userChallenges = await sql`SELECT * FROM user_challenges ORDER BY created_at DESC`;
@@ -110,16 +240,29 @@ export async function claimChallengeReward(req, res) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // 2️⃣ Récupérer le défi
+    // 2️⃣ Récupérer le défi avec ses conditions
     const [challenge] = await sql`
-      SELECT id, xp_reward FROM challenges WHERE id = ${challengeId}
+      SELECT id, xp_reward, requirement_type, requirement_value, requirement_service_type, requirement_categories
+      FROM challenges 
+      WHERE id = ${challengeId}
     `;
 
     if (!challenge) {
       return res.status(404).json({ message: "Challenge not found" });
     }
 
-    // 3️⃣ Vérifier si l'utilisateur a déjà complété ce défi
+    // 3️⃣ VÉRIFIER LES CONDITIONS DU DÉFI
+    const isCompleted = await verifyChallengeCompletion(user.id, challenge);
+    
+    if (!isCompleted) {
+      return res.status(400).json({ 
+        message: "Challenge requirements not met. Action not completed in the specified category or conditions not satisfied.",
+        requirement_type: challenge.requirement_type,
+        requirement_value: challenge.requirement_value,
+      });
+    }
+
+    // 4️⃣ Vérifier si l'utilisateur a déjà complété ce défi
     const [existingUserChallenge] = await sql`
       SELECT id, status FROM user_challenges 
       WHERE user_id = ${user.id} AND challenge_id = ${challengeId}
@@ -133,7 +276,7 @@ export async function claimChallengeReward(req, res) {
       });
     }
 
-    // 4️⃣ Mettre à jour user_challenges avec status='completed'
+    // 5️⃣ Mettre à jour user_challenges avec status='completed'
     if (existingUserChallenge) {
       // Mettre à jour l'enregistrement existant
       await sql`
@@ -149,7 +292,7 @@ export async function claimChallengeReward(req, res) {
       `;
     }
 
-    // 5️⃣ Ajouter les XP au profil
+    // 6️⃣ Ajouter les XP au profil
     const xpReward = challenge.xp_reward || 0;
     
     const [updatedProfile] = await sql`

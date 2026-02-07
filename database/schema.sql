@@ -52,6 +52,7 @@ export async function initDB() {
       CREATE TABLE categories (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL UNIQUE,
+        slug VARCHAR(100) NOT NULL UNIQUE,
         description TEXT,
         icon VARCHAR(100),
         color VARCHAR(7),
@@ -59,19 +60,20 @@ export async function initDB() {
       );
 
       CREATE INDEX idx_categories_name ON categories(name);
+      CREATE INDEX idx_categories_slug ON categories(slug);
 
       -- Insert default categories
-      INSERT INTO categories (name, description, icon, color) VALUES
-        ('Informatique', 'Services informatiques et technologiques', 'laptop', '#3498db'),
-        ('Design', 'Services de design et créatif', 'palette', '#e74c3c'),
-        ('Santé', 'Services de santé et bien-être', 'heart', '#2ecc71'),
-        ('Éducation', 'Services d''éducation et formation', 'book', '#f39c12'),
-        ('Jardinage', 'Services d''entretien et jardinage', 'leaf', '#27ae60'),
-        ('Babysitting', 'Services de garde d''enfants', 'people', '#9b59b6'),
-        ('Ménage', 'Services de nettoyage et ménage', 'home', '#95a5a6'),
-        ('Réparation', 'Services de réparation et maintenance', 'wrench', '#34495e'),
-        ('Transport', 'Services de transport et livraison', 'car', '#16a085'),
-        ('Photographie', 'Services de photographie et vidéo', 'camera', '#d35400');
+      INSERT INTO categories (name, slug, description, icon, color) VALUES
+        ('Informatique', 'informatique', 'Services informatiques et technologiques', 'laptop', '#3498db'),
+        ('Design', 'design', 'Services de design et créatif', 'palette', '#e74c3c'),
+        ('Santé', 'sante', 'Services de santé et bien-être', 'heart', '#2ecc71'),
+        ('Éducation', 'education', 'Services d''éducation et formation', 'book', '#f39c12'),
+        ('Jardinage', 'jardinage', 'Services d''entretien et jardinage', 'leaf', '#27ae60'),
+        ('Babysitting', 'babysitting', 'Services de garde d''enfants', 'people', '#9b59b6'),
+        ('Ménage', 'menage', 'Services de nettoyage et ménage', 'home', '#95a5a6'),
+        ('Réparation', 'reparation', 'Services de réparation et maintenance', 'wrench', '#34495e'),
+        ('Transport', 'transport', 'Services de transport et livraison', 'car', '#16a085'),
+        ('Photographie', 'photographie', 'Services de photographie et vidéo', 'camera', '#d35400');
 
       -- ===================================
       -- 3. PROFILES TABLE (Gamification)

@@ -102,6 +102,11 @@ export async function createChallengeAdmin(req, res) {
       return res.status(400).json({ message: "xp_reward must be a number" });
     }
 
+    // Valider requirement_value si présent
+    if (reqValue !== null && isNaN(reqValue)) {
+      return res.status(400).json({ message: "requirement_value must be a valid number" });
+    }
+
     // Valider la difficulté
     const validDifficulties = ["facile", "moyen", "difficile"];
     if (difficulty && !validDifficulties.includes(difficulty)) {
@@ -214,7 +219,18 @@ export async function updateChallengeAdmin(req, res) {
     const xpValue = xp_reward !== undefined ? parseInt(xp_reward) : undefined;
     const daysValue = duration_days ? parseInt(duration_days) : undefined;
     const catId = category_id ? parseInt(category_id) : undefined;
-    const reqValue = requirement_value !== undefined ? parseInt(requirement_value) : undefined;
+    const reqValue = requirement_value !== undefined && requirement_value !== null ? parseInt(requirement_value) : requirement_value;
+
+    // Valider les conversions numériques
+    if (xpValue !== undefined && isNaN(xpValue)) {
+      return res.status(400).json({ message: "xp_reward must be a valid number" });
+    }
+    if (daysValue !== undefined && isNaN(daysValue)) {
+      return res.status(400).json({ message: "duration_days must be a valid number" });
+    }
+    if (reqValue !== undefined && reqValue !== null && isNaN(reqValue)) {
+      return res.status(400).json({ message: "requirement_value must be a valid number" });
+    }
 
     // Valider la difficulté
     if (difficulty) {

@@ -3,7 +3,17 @@ import { sql } from "../config/db.js";
 // Créer une réservation
 export async function createBooking(req, res) {
   try {
-    const { service_id, booking_date, booking_time, quantity, notes } = req.body;
+    const {
+      service_id,
+      booking_date,
+      booking_time,
+      duration_hours,
+      quantity,
+      unit_type,
+      location_type,
+      urgency,
+      notes,
+    } = req.body;
 
     // Récupérer l'utilisateur actuel depuis son clerk_id
     const [currentUser] = await sql`
@@ -16,14 +26,14 @@ export async function createBooking(req, res) {
 
     const client_id = currentUser.id;
 
-    // Valider les données
+    // Valider les données essentielles
     if (!service_id || !booking_date || !booking_time) {
       return res.status(400).json({ error: "service_id, booking_date et booking_time sont requis" });
     }
 
     // Récupérer le service et ses infos
     const [service] = await sql`
-      SELECT id, user_id, price, is_hourly, status FROM services WHERE id = ${service_id}
+      SELECT id, user_id, price, status FROM services WHERE id = ${service_id}
     `;
 
     if (!service) {
@@ -40,7 +50,11 @@ export async function createBooking(req, res) {
 
     const provider_id = service.user_id;
     const q = quantity || 1;
-    const total_price = service.price * q;
+    const d = duration_hours || 1;
+    const urgencyMultiplier = urgency === "rush" ? 1.5 : 1;
+
+    // Calcul du prix: prix × durée × quantité × urgence
+    const total_price = parseFloat(service.price) * d * q * urgencyMultiplier;
 
     // Créer la réservation
     const booking = await sql`
@@ -50,11 +64,30 @@ export async function createBooking(req, res) {
         provider_id,
         booking_date,
         booking_time,
+        duration_hours,
+        quantity,
+        unit_type,
+        location_type,
+        urgency,
         total_price,
         notes,
         status
       )
-      VALUES (${service_id}, ${client_id}, ${provider_id}, ${booking_date}, ${booking_time}, ${total_price}, ${notes || null}, 'pending')
+      VALUES (
+        ${service_id},
+        ${client_id},
+        ${provider_id},
+        ${booking_date},
+        ${booking_time},
+        ${d},
+        ${q},
+        ${unit_type || null},
+        ${location_type || 'on_site'},
+        ${urgency || 'standard'},
+        ${total_price},
+        ${notes || null},
+        'pending'
+      )
       RETURNING *
     `;
 

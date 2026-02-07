@@ -61,7 +61,9 @@ export async function updateUserRole(req, res) {
 export async function getAdminChallenges(req, res) {
   try {
     const challenges = await sql`
-      SELECT * FROM challenges
+      SELECT *, 
+        (created_at + (duration_days || ' days')::interval) as expires_at
+      FROM challenges
       ORDER BY created_at DESC
     `;
     res.status(200).json(challenges);

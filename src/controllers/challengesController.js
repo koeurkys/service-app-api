@@ -2,7 +2,14 @@ import { sql } from "../config/db.js";
 
 export async function getChallenges(req, res) {
   try {
-    const challenges = await sql`SELECT * FROM challenges ORDER BY created_at DESC`;
+    const challenges = await sql`
+      SELECT *, 
+        (created_at + (duration_days || ' days')::interval) as expires_at
+      FROM challenges 
+      WHERE is_active = true 
+      AND (created_at + (duration_days || ' days')::interval) > NOW()
+      ORDER BY created_at DESC
+    `;
     res.status(200).json(challenges);
   } catch (error) {
     console.log("Error getting challenges", error);
@@ -13,7 +20,12 @@ export async function getChallenges(req, res) {
 export async function getChallengeById(req, res) {
   try {
     const { id } = req.params;
-    const challenge = await sql`SELECT * FROM challenges WHERE id = ${id}`;
+    const challenge = await sql`
+      SELECT *, 
+        (created_at + (duration_days || ' days')::interval) as expires_at
+      FROM challenges 
+      WHERE id = ${id}
+    `;
 
     if (challenge.length === 0) {
       return res.status(404).json({ message: "Challenge not found" });

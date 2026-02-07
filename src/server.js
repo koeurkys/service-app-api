@@ -48,6 +48,7 @@ import categoryXpRoute from "./routes/categoryXpRoute.js";
 import challengesRoute from "./routes/challengesRoute.js";
 import userChallengesRoute from "./routes/userChallengesRoute.js";
 import uploadRoute from "./routes/uploadRoute.js";
+import adminRoute from "./routes/adminRoute.js";
 
 console.log("9️⃣ [INIT] All routes imported");
 
@@ -189,6 +190,7 @@ app.use("/api/category-xp", categoryXpRoute);
 app.use("/api/challenges", challengesRoute);
 app.use("/api/user-challenges", userChallengesRoute);
 app.use("/api/upload", uploadRoute);
+app.use("/api/admin", adminRoute);
 
 console.log("✅ All routes configured successfully");
 

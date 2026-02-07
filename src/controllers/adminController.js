@@ -123,7 +123,19 @@ export async function createChallengeAdmin(req, res) {
       "collect_badges",
       "reliability_score",
       "taxi_trip",
-      "global_rating"
+      "global_rating",
+      "total_friends_count",
+      "followers_count",
+      "total_transactions",
+      "total_revenue_earned",
+      "messages_sent_count",
+      "daily_action_streak",
+      "unique_taxi_routes",
+      "profile_completion_percentage",
+      "account_age_days",
+      "verified_email_and_phone",
+      "perfect_rating_with_min_reviews",
+      "categories_engaged_count"
     ];
     if (requirement_type && !validRequirementTypes.includes(requirement_type)) {
       return res.status(400).json({ 
@@ -228,7 +240,19 @@ export async function updateChallengeAdmin(req, res) {
         "collect_badges",
         "reliability_score",
         "taxi_trip",
-        "global_rating"
+        "global_rating",
+        "total_friends_count",
+        "followers_count",
+        "total_transactions",
+        "total_revenue_earned",
+        "messages_sent_count",
+        "daily_action_streak",
+        "unique_taxi_routes",
+        "profile_completion_percentage",
+        "account_age_days",
+        "verified_email_and_phone",
+        "perfect_rating_with_min_reviews",
+        "categories_engaged_count"
       ];
       if (!validRequirementTypes.includes(requirement_type)) {
         return res.status(400).json({ 

@@ -253,6 +253,7 @@ export async function initDB() {
         requirement_type VARCHAR(100),
         requirement_value INTEGER,
         requirement_service_type VARCHAR(20) DEFAULT 'both' CHECK (requirement_service_type IN ('service', 'booking', 'both')),
+        requirement_categories JSONB,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

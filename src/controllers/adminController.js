@@ -84,7 +84,8 @@ export async function createChallengeAdmin(req, res) {
       duration_days, 
       requirement_type, 
       requirement_value,
-      requirement_service_type
+      requirement_service_type,
+      requirement_categories
     } = req.body;
 
     if (!title || !description || xp_reward === undefined) {
@@ -115,6 +116,11 @@ export async function createChallengeAdmin(req, res) {
       ? requirement_service_type 
       : "both";
 
+    // Convertir les catégories en JSON
+    const categoriesJson = requirement_categories && Array.isArray(requirement_categories) && requirement_categories.length > 0
+      ? JSON.stringify(requirement_categories)
+      : null;
+
     const challenge = await sql`
       INSERT INTO challenges(
         title, 
@@ -125,7 +131,8 @@ export async function createChallengeAdmin(req, res) {
         duration_days, 
         requirement_type, 
         requirement_value,
-        requirement_service_type
+        requirement_service_type,
+        requirement_categories
       )
       VALUES (
         ${title}, 
@@ -136,7 +143,8 @@ export async function createChallengeAdmin(req, res) {
         ${daysValue}, 
         ${requirement_type || null}, 
         ${reqValue || null},
-        ${serviceType}
+        ${serviceType},
+        ${categoriesJson}
       )
       RETURNING *
     `;
@@ -165,7 +173,8 @@ export async function updateChallengeAdmin(req, res) {
       duration_days, 
       requirement_type, 
       requirement_value,
-      requirement_service_type
+      requirement_service_type,
+      requirement_categories
     } = req.body;
 
     // Convertir les nombres si fournis
@@ -190,6 +199,14 @@ export async function updateChallengeAdmin(req, res) {
       ? requirement_service_type
       : undefined;
 
+    // Convertir les catégories en JSON
+    let categoriesJson = undefined;
+    if (requirement_categories !== undefined) {
+      categoriesJson = requirement_categories && Array.isArray(requirement_categories) && requirement_categories.length > 0
+        ? JSON.stringify(requirement_categories)
+        : null;
+    }
+
     const updated = await sql`
       UPDATE challenges
       SET 
@@ -201,7 +218,8 @@ export async function updateChallengeAdmin(req, res) {
         duration_days = COALESCE(${daysValue}, duration_days),
         requirement_type = COALESCE(${requirement_type}, requirement_type),
         requirement_value = COALESCE(${reqValue}, requirement_value),
-        requirement_service_type = COALESCE(${serviceType}, requirement_service_type)
+        requirement_service_type = COALESCE(${serviceType}, requirement_service_type),
+        requirement_categories = COALESCE(${categoriesJson}, requirement_categories)
       WHERE id = ${id}
       RETURNING *
     `;

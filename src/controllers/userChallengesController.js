@@ -83,3 +83,92 @@ export async function deleteUserChallenge(req, res) {
     res.status(500).json({ message: "Internal server error" });
   }
 }
+
+/**
+ * Réclamer la récompense XP d'un défi complété
+ * POST /api/user-challenges/:challengeId/claim
+ */
+export async function claimChallengeReward(req, res) {
+  try {
+    const clerkId = req.clerkUserId;
+    const { challengeId } = req.params;
+
+    if (!clerkId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (!challengeId) {
+      return res.status(400).json({ message: "challengeId is required" });
+    }
+
+    // 1️⃣ Récupérer l'user_id à partir du clerk_id
+    const [user] = await sql`
+      SELECT id FROM users WHERE clerk_id = ${clerkId}
+    `;
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // 2️⃣ Récupérer le défi
+    const [challenge] = await sql`
+      SELECT id, xp_reward FROM challenges WHERE id = ${challengeId}
+    `;
+
+    if (!challenge) {
+      return res.status(404).json({ message: "Challenge not found" });
+    }
+
+    // 3️⃣ Vérifier si l'utilisateur a déjà complété ce défi
+    const [existingUserChallenge] = await sql`
+      SELECT id, status FROM user_challenges 
+      WHERE user_id = ${user.id} AND challenge_id = ${challengeId}
+    `;
+
+    // Si déjà complété, retourner une erreur
+    if (existingUserChallenge && existingUserChallenge.status === "completed") {
+      return res.status(400).json({ 
+        message: "Challenge already completed and reward already claimed",
+        xpGained: 0
+      });
+    }
+
+    // 4️⃣ Mettre à jour user_challenges avec status='completed'
+    if (existingUserChallenge) {
+      // Mettre à jour l'enregistrement existant
+      await sql`
+        UPDATE user_challenges
+        SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+        WHERE id = ${existingUserChallenge.id}
+      `;
+    } else {
+      // Créer un nouvel enregistrement
+      await sql`
+        INSERT INTO user_challenges(user_id, challenge_id, status, completed_at)
+        VALUES (${user.id}, ${challengeId}, 'completed', CURRENT_TIMESTAMP)
+      `;
+    }
+
+    // 5️⃣ Ajouter les XP au profil
+    const xpReward = challenge.xp_reward || 0;
+    
+    const [updatedProfile] = await sql`
+      UPDATE profiles
+      SET xp_total = xp_total + ${xpReward},
+          updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = ${user.id}
+      RETURNING xp_total, level
+    `;
+
+    return res.status(200).json({
+      message: "Challenge reward claimed successfully",
+      xpGained: xpReward,
+      newTotalXP: updatedProfile?.xp_total || xpReward,
+      newLevel: updatedProfile?.level || 1
+    });
+
+  } catch (error) {
+    console.error("Error claiming challenge reward:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}

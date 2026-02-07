@@ -5,6 +5,7 @@ import {
   createUserChallenge,
   updateUserChallenge,
   deleteUserChallenge,
+  claimChallengeReward,
 } from "../controllers/userChallengesController.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -15,5 +16,6 @@ router.get("/:userId", requireAuth, getUserChallengesByUserId);
 router.post("/", requireAuth, createUserChallenge);
 router.put("/:id", requireAuth, updateUserChallenge);
 router.delete("/:id", requireAuth, deleteUserChallenge);
+router.post("/:challengeId/claim", requireAuth, claimChallengeReward);
 
 export default router;

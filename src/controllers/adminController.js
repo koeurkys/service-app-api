@@ -99,6 +99,14 @@ export async function createChallengeAdmin(req, res) {
       return res.status(400).json({ message: "xp_reward must be a number" });
     }
 
+    // Valider la difficulté
+    const validDifficulties = ["facile", "moyen", "difficile"];
+    if (difficulty && !validDifficulties.includes(difficulty)) {
+      return res.status(400).json({ 
+        message: `Invalid difficulty. Must be one of: ${validDifficulties.join(", ")}` 
+      });
+    }
+
     const challenge = await sql`
       INSERT INTO challenges(
         title, 
@@ -115,7 +123,7 @@ export async function createChallengeAdmin(req, res) {
         ${description}, 
         ${xpValue}, 
         ${catId}, 
-        ${difficulty || "medium"}, 
+        ${difficulty || "moyen"}, 
         ${daysValue}, 
         ${requirement_type || null}, 
         ${requirement_value || null}
@@ -153,6 +161,16 @@ export async function updateChallengeAdmin(req, res) {
     const xpValue = xp_reward !== undefined ? parseInt(xp_reward) : undefined;
     const daysValue = duration_days ? parseInt(duration_days) : undefined;
     const catId = category_id ? parseInt(category_id) : undefined;
+
+    // Valider la difficulté
+    if (difficulty) {
+      const validDifficulties = ["facile", "moyen", "difficile"];
+      if (!validDifficulties.includes(difficulty)) {
+        return res.status(400).json({ 
+          message: `Invalid difficulty. Must be one of: ${validDifficulties.join(", ")}` 
+        });
+      }
+    }
 
     const updated = await sql`
       UPDATE challenges

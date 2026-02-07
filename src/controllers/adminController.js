@@ -22,7 +22,8 @@ export async function getAllUsersForAdmin(req, res) {
 /* ===================================================== */
 export async function updateUserRole(req, res) {
   try {
-    const { userId, role } = req.body;
+    const { userId } = req.params;
+    const { role } = req.body;
 
     if (!userId || !role) {
       return res.status(400).json({ message: "userId and role are required" });

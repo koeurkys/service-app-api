@@ -1,4 +1,5 @@
 import { sql } from "../config/db.js";
+import { calculateLevelFromXP } from "../utils/levelCalculation.js";
 
 /**
  * Vérifier si un utilisateur a complété les conditions d'un défi
@@ -300,14 +301,17 @@ export async function claimChallengeReward(req, res) {
       SET xp_total = xp_total + ${xpReward},
           updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ${user.id}
-      RETURNING xp_total, level
+      RETURNING xp_total
     `;
+
+    // Recalculer le niveau correctement
+    const newLevel = calculateLevelFromXP(updatedProfile?.xp_total || 0);
 
     return res.status(200).json({
       message: "Challenge reward claimed successfully",
       xpGained: xpReward,
       newTotalXP: updatedProfile?.xp_total || xpReward,
-      newLevel: updatedProfile?.level || 1
+      newLevel
     });
 
   } catch (error) {

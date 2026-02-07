@@ -1,4 +1,5 @@
 import { sql } from "../config/db.js";
+import { calculateLevelFromXP } from "../utils/levelCalculation.js";
 
 /* ===================================================== */
 /* GET /api/ranking */
@@ -17,7 +18,6 @@ export async function getRanking(req, res) {
         users.avatar_url,
         users.role,
         profiles.xp_total,
-        profiles.level,
         profiles.rating_avg,
         profiles.total_services_completed
       FROM profiles
@@ -26,7 +26,13 @@ export async function getRanking(req, res) {
       LIMIT ${Number(limit)}
     `;
 
-    res.status(200).json(ranking);
+    // Recalculer le niveau pour chaque utilisateur
+    const rankingWithCorrectLevel = ranking.map(user => ({
+      ...user,
+      level: calculateLevelFromXP(user.xp_total)
+    }));
+
+    res.status(200).json(rankingWithCorrectLevel);
   } catch (error) {
     console.log("Error getting ranking", error);
     res.status(500).json({ message: "Internal server error" });

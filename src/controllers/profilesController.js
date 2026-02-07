@@ -1,4 +1,5 @@
 import { sql } from "../config/db.js";
+import { calculateLevelFromXP } from "../utils/levelCalculation.js";
 export async function getProfileByUserId(req, res) {
   try {
     const { userId } = req.params;
@@ -82,15 +83,14 @@ export async function getProfileByMe(req, res) {
         COALESCE(SUM(b.total_price), 0) AS total_earnings,
         COUNT(b.id)                   AS total_bookings,
         u.avatar_url AS avatar_url,
-        p.xp_total,
-        p.level
+        p.xp_total
       FROM profiles p
       JOIN users u ON u.id = p.user_id
       LEFT JOIN bookings b
         ON b.provider_id = p.user_id
         AND b.status = 'completed'
       WHERE p.user_id = ${user.id}
-      GROUP BY p.id, u.avatar_url, p.xp_total, p.level
+      GROUP BY p.id, u.avatar_url, p.xp_total
     `;
 
     // 3️⃣ services
@@ -113,9 +113,13 @@ export async function getProfileByMe(req, res) {
       ORDER BY s.created_at DESC
     `;
 
+    // 4️⃣ Calculer le niveau correct basé sur l'XP
+    const level = calculateLevelFromXP(stats.xp_total);
+
     res.json({
       id: user.id, // Ajouter l'ID utilisateur
       ...stats,
+      level, // Remplacer par le niveau calculé correctement
       services,
     });
   } catch (error) {

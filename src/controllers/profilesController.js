@@ -33,11 +33,12 @@ export async function getProfileByUserId(req, res) {
       SELECT
         s.id,
         s.title,
-        s.price AS price_per_hour,
+        s.price AS price,
         s.image_url,
         s.created_at,
         s.average_rating::float AS rating,
         s.total_bookings AS reviews_count,
+        s.status,
         c.name AS category
       FROM services s
       JOIN categories c ON c.id = s.category_id

@@ -197,7 +197,7 @@ export async function syncBadgesForUser(userId) {
     // Get all badges from DB
     const allBadges = await sql`
       SELECT id, name, description, xp_required, condition_type FROM badges
-      ORDER BY xp_required ASC, id ASC
+      ORDER BY id ASC
     `;
 
     console.log(`📚 Found ${allBadges.length} badges in database`);
@@ -212,25 +212,49 @@ export async function syncBadgesForUser(userId) {
         `;
 
         if (existing.length > 0) {
-          console.log(`⏭️  Badge ${badge.id} (${badge.name}) - already owned`);
           continue;
         }
 
         let shouldAward = false;
-        const xpRequired = badge.xp_required || 0;
+        const conditionType = badge.condition_type || '';
+        const xpReq = badge.xp_required || 0;
 
-        // Check XP-based badges
-        if (badge.condition_type === 'xp' || (badge.condition_type === 'level' && xpRequired > 0)) {
-          if (p.xp_total >= xpRequired) {
-            console.log(`✅ XP Badge ${badge.id} (${badge.name}) - EARNED! (${p.xp_total} >= ${xpRequired})`);
+        // ===== XP-based badges =====
+        if (conditionType.startsWith('xp_')) {
+          // Extract threshold from condition_type (e.g., 'xp_100' → 100)
+          const xpThreshold = parseInt(conditionType.split('_')[1]);
+          if (p.xp_total >= xpThreshold) {
+            console.log(`✅ XP Badge ${badge.id} (${badge.name}) - EARNED! (${p.xp_total} >= ${xpThreshold})`);
             shouldAward = true;
           } else {
-            console.log(`⏳ XP Badge ${badge.id} (${badge.name}) - ${p.xp_total}/${xpRequired} XP`);
+            console.log(`⏳ XP Badge ${badge.id} (${badge.name}) - ${p.xp_total}/${xpThreshold} XP`);
           }
         }
-        // Check rating-based badges
-        else if (badge.condition_type === 'avg_rating' || badge.condition_type === 'rating') {
-          const ratingThreshold = xpRequired / 100; // Convert 450 → 4.5
+        // ===== Service completion badges =====
+        else if (conditionType.startsWith('completed_')) {
+          const completedThreshold = parseInt(conditionType.split('_')[1]);
+          if (p.total_services_completed >= completedThreshold) {
+            console.log(`✅ Completed Badge ${badge.id} (${badge.name}) - EARNED! (${p.total_services_completed} >= ${completedThreshold})`);
+            shouldAward = true;
+          } else {
+            console.log(`⏳ Completed Badge ${badge.id} (${badge.name}) - ${p.total_services_completed}/${completedThreshold} services`);
+          }
+        }
+        // ===== Services published badges =====
+        else if (conditionType.startsWith('services_')) {
+          const servicesThreshold = parseInt(conditionType.split('_')[1]);
+          if (p.total_services_published >= servicesThreshold) {
+            console.log(`✅ Services Badge ${badge.id} (${badge.name}) - EARNED! (${p.total_services_published} >= ${servicesThreshold})`);
+            shouldAward = true;
+          } else {
+            console.log(`⏳ Services Badge ${badge.id} (${badge.name}) - ${p.total_services_published}/${servicesThreshold} services`);
+          }
+        }
+        // ===== Rating-based badges =====
+        else if (conditionType.startsWith('rating_')) {
+          // Extract threshold from condition_type (e.g., 'rating_40' → 4.0, 'rating_45' → 4.5)
+          const ratingStr = conditionType.split('_')[1];
+          const ratingThreshold = parseInt(ratingStr) / 10;
           if (p.rating_avg >= ratingThreshold) {
             console.log(`✅ Rating Badge ${badge.id} (${badge.name}) - EARNED! (${p.rating_avg} >= ${ratingThreshold})`);
             shouldAward = true;
@@ -238,21 +262,15 @@ export async function syncBadgesForUser(userId) {
             console.log(`⏳ Rating Badge ${badge.id} (${badge.name}) - ${p.rating_avg}/${ratingThreshold} rating`);
           }
         }
-        // Check service completion badges
-        else if (badge.condition_type === 'completed_services' || badge.condition_type === 'services') {
-          if (p.total_services_completed >= xpRequired) {
-            console.log(`✅ Services Badge ${badge.id} (${badge.name}) - EARNED! (${p.total_services_completed} >= ${xpRequired})`);
-            shouldAward = true;
-          } else {
-            console.log(`⏳ Services Badge ${badge.id} (${badge.name}) - ${p.total_services_completed}/${xpRequired} services`);
-          }
+        // ===== Achievement badges (no condition) =====
+        else if (conditionType.includes('first_') || conditionType.includes('profile_')) {
+          // These are typically milestone achievements that are checked separately
+          // For now, marking as not auto-awarded
+          console.log(`ℹ️ Achievement Badge ${badge.id} (${badge.name}) - requires special check`);
         }
-        // Check first booking/milestone badges
-        else if (badge.condition_type === 'first_booking' || badge.condition_type === 'milestone') {
-          if (p.total_services_completed >= 1) {
-            console.log(`✅ Milestone Badge ${badge.id} (${badge.name}) - EARNED! (first booking)`);
-            shouldAward = true;
-          }
+        // ===== Other condition types =====
+        else {
+          console.log(`ℹ️ Badge ${badge.id} (${badge.name}) - unknown condition type: ${conditionType}`);
         }
 
         // Award the badge if conditions met

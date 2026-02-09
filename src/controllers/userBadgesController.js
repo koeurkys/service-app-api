@@ -17,8 +17,12 @@ export async function getAllBadges(req, res) {
 // Get user's earned badges with details
 export async function getMyBadges(req, res) {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
     
+    if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
     const userBadges = await sql`
       SELECT ub.*, b.*, ub.earned_at
       FROM user_badges ub
@@ -128,7 +132,12 @@ export async function deleteUserBadge(req, res) {
 // Award badge to user
 export async function awardBadge(req, res) {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
     const { badgeId } = req.body;
 
     if (!badgeId) {
@@ -264,7 +273,12 @@ export async function syncBadgesForUser(userId) {
 // Sync badges - automatically check and award badges based on user progress
 export async function syncBadges(req, res) {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
     const result = await syncBadgesForUser(userId);
 
     res.status(200).json({ 

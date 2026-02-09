@@ -217,11 +217,9 @@ export async function syncBadgesForUser(userId) {
 
         let shouldAward = false;
         const conditionType = badge.condition_type || '';
-        const xpReq = badge.xp_required || 0;
 
-        // ===== XP-based badges =====
+        // ===== XP-based badges (xp_100, xp_500, etc.) =====
         if (conditionType.startsWith('xp_')) {
-          // Extract threshold from condition_type (e.g., 'xp_100' → 100)
           const xpThreshold = parseInt(conditionType.split('_')[1]);
           if (p.xp_total >= xpThreshold) {
             console.log(`✅ XP Badge ${badge.id} (${badge.name}) - EARNED! (${p.xp_total} >= ${xpThreshold})`);
@@ -230,7 +228,7 @@ export async function syncBadgesForUser(userId) {
             console.log(`⏳ XP Badge ${badge.id} (${badge.name}) - ${p.xp_total}/${xpThreshold} XP`);
           }
         }
-        // ===== Service completion badges =====
+        // ===== Service completion badges (completed_10, completed_25, etc.) =====
         else if (conditionType.startsWith('completed_')) {
           const completedThreshold = parseInt(conditionType.split('_')[1]);
           if (p.total_services_completed >= completedThreshold) {
@@ -240,7 +238,7 @@ export async function syncBadgesForUser(userId) {
             console.log(`⏳ Completed Badge ${badge.id} (${badge.name}) - ${p.total_services_completed}/${completedThreshold} services`);
           }
         }
-        // ===== Services published badges =====
+        // ===== Services published badges (services_5, services_10, etc.) =====
         else if (conditionType.startsWith('services_')) {
           const servicesThreshold = parseInt(conditionType.split('_')[1]);
           if (p.total_services_published >= servicesThreshold) {
@@ -250,9 +248,8 @@ export async function syncBadgesForUser(userId) {
             console.log(`⏳ Services Badge ${badge.id} (${badge.name}) - ${p.total_services_published}/${servicesThreshold} services`);
           }
         }
-        // ===== Rating-based badges =====
+        // ===== Rating-based badges (rating_40 → 4.0, rating_45 → 4.5, etc.) =====
         else if (conditionType.startsWith('rating_')) {
-          // Extract threshold from condition_type (e.g., 'rating_40' → 4.0, 'rating_45' → 4.5)
           const ratingStr = conditionType.split('_')[1];
           const ratingThreshold = parseInt(ratingStr) / 10;
           if (p.rating_avg >= ratingThreshold) {
@@ -262,13 +259,88 @@ export async function syncBadgesForUser(userId) {
             console.log(`⏳ Rating Badge ${badge.id} (${badge.name}) - ${p.rating_avg}/${ratingThreshold} rating`);
           }
         }
-        // ===== Achievement badges (no condition) =====
-        else if (conditionType.includes('first_') || conditionType.includes('profile_')) {
-          // These are typically milestone achievements that are checked separately
-          // For now, marking as not auto-awarded
-          console.log(`ℹ️ Achievement Badge ${badge.id} (${badge.name}) - requires special check`);
+        // ===== Category XP badges (category_xp_informatique, category_xp_design, etc.) =====
+        else if (conditionType.startsWith('category_xp_')) {
+          const categorySlug = conditionType.split('category_xp_')[1];
+          const xpThreshold = badge.xp_required || 100;
+          
+          try {
+            const categoryXp = await sql`
+              SELECT xp FROM category_xp
+              JOIN categories ON category_xp.category_id = categories.id
+              WHERE category_xp.user_id = ${userId} AND categories.slug = ${categorySlug}
+              LIMIT 1
+            `;
+            
+            const userCategoryXp = categoryXp.length > 0 ? categoryXp[0].xp : 0;
+            if (userCategoryXp >= xpThreshold) {
+              console.log(`✅ Category XP Badge ${badge.id} (${badge.name}) - EARNED! (${userCategoryXp} >= ${xpThreshold} in ${categorySlug})`);
+              shouldAward = true;
+            } else {
+              console.log(`⏳ Category XP Badge ${badge.id} (${badge.name}) - ${userCategoryXp}/${xpThreshold} XP in ${categorySlug}`);
+            }
+          } catch (err) {
+            console.log(`ℹ️ Category XP Badge ${badge.id} (${badge.name}) - category data not available`);
+          }
         }
-        // ===== Other condition types =====
+        // ===== Positive reviews badges (positive_reviews_10, positive_reviews_25, etc.) =====
+        else if (conditionType.startsWith('positive_reviews_')) {
+          const reviewsThreshold = parseInt(conditionType.split('_')[2]);
+          
+          try {
+            const positiveReviews = await sql`
+              SELECT COUNT(*) as count FROM reviews
+              WHERE provider_id = ${userId} AND rating >= 4
+            `;
+            
+            const reviewCount = positiveReviews[0].count || 0;
+            if (reviewCount >= reviewsThreshold) {
+              console.log(`✅ Positive Reviews Badge ${badge.id} (${badge.name}) - EARNED! (${reviewCount} >= ${reviewsThreshold} positive reviews)`);
+              shouldAward = true;
+            } else {
+              console.log(`⏳ Positive Reviews Badge ${badge.id} (${badge.name}) - ${reviewCount}/${reviewsThreshold} positive reviews`);
+            }
+          } catch (err) {
+            console.log(`ℹ️ Positive Reviews Badge ${badge.id} (${badge.name}) - review data not available`);
+          }
+        }
+        // ===== First achievement badges =====
+        else if (conditionType === 'first_booking' || conditionType === 'first_service' || conditionType === 'first_profile' || conditionType === 'first_request') {
+          // Check if user has completed their first action
+          let hasCompleted = false;
+          
+          if (conditionType === 'first_booking') {
+            hasCompleted = p.total_services_completed >= 1;
+          } else if (conditionType === 'first_service') {
+            hasCompleted = p.total_services_published >= 1;
+          } else if (conditionType === 'first_profile') {
+            hasCompleted = !!p.bio;
+          } else if (conditionType === 'first_request') {
+            // Similar to first_booking
+            hasCompleted = p.total_services_completed >= 1;
+          }
+          
+          if (hasCompleted) {
+            console.log(`✅ Achievement Badge ${badge.id} (${badge.name}) - EARNED! (first action completed)`);
+            shouldAward = true;
+          } else {
+            console.log(`⏳ Achievement Badge ${badge.id} (${badge.name}) - waiting for first action`);
+          }
+        }
+        // ===== Additional engagement badges (not yet tracked) =====
+        else if (conditionType.startsWith('contact_requests_')) {
+          console.log(`ℹ️ Contact Requests Badge ${badge.id} (${badge.name}) - tracking not yet implemented`);
+        }
+        else if (conditionType.startsWith('messages_')) {
+          console.log(`ℹ️ Messages Badge ${badge.id} (${badge.name}) - tracking not yet implemented`);
+        }
+        else if (conditionType.startsWith('followers_')) {
+          console.log(`ℹ️ Followers Badge ${badge.id} (${badge.name}) - tracking not yet implemented`);
+        }
+        else if (conditionType === 'quick_completion' || conditionType === 'night_completion') {
+          console.log(`ℹ️ Special Badge ${badge.id} (${badge.name}) - requires detailed tracking not yet implemented`);
+        }
+        // ===== Unknown condition types =====
         else {
           console.log(`ℹ️ Badge ${badge.id} (${badge.name}) - unknown condition type: ${conditionType}`);
         }

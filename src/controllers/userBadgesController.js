@@ -190,82 +190,90 @@ export async function syncBadgesForUser(userId) {
 
     const p = profile[0];
     const awardedBadges = [];
-    const badgesToCheck = [];
-
-    // Get all badges from DB to find correct IDs
-    const allBadges = await sql`
-      SELECT id, name, description, xp_required, condition_type FROM badges
-      ORDER BY xp_required ASC
-    `;
-
-    // Create a map of badges by xp_required for easier lookup
-    const badgesByCondition = {};
-    allBadges.forEach(b => {
-      if (b.condition_type === 'xp') {
-        badgesByCondition[`xp_${b.xp_required}`] = b.id;
-      } else if (b.condition_type === 'avg_rating') {
-        badgesByCondition[`rating_${b.xp_required}`] = b.id;
-      } else if (b.condition_type === 'completed_services') {
-        badgesByCondition[`services_${b.xp_required}`] = b.id;
-      }
-    });
 
     console.log(`🎯 Syncing badges for user ${userId}`);
-    console.log(`📊 XP: ${p.xp_total}, Rating: ${p.rating_avg}, Services: ${p.total_services_completed}, Published: ${p.total_services_published}`);
+    console.log(`📊 Profile Data - XP: ${p.xp_total}, Rating: ${p.rating_avg}, Services Completed: ${p.total_services_completed}, Services Published: ${p.total_services_published}`);
 
-    // ===== XP-based badges =====
-    // Look for badge by xp_required value
-    if (p.xp_total >= 100) {
-      const badgeId = badgesByCondition['xp_100'];
-      if (badgeId) badgesToCheck.push(badgeId);
-    }
-    if (p.xp_total >= 500) {
-      const badgeId = badgesByCondition['xp_500'];
-      if (badgeId) badgesToCheck.push(badgeId);
-    }
-    if (p.xp_total >= 1000) {
-      const badgeId = badgesByCondition['xp_1000'];
-      if (badgeId) badgesToCheck.push(badgeId);
-    }
+    // Get all badges from DB
+    const allBadges = await sql`
+      SELECT id, name, description, xp_required, condition_type FROM badges
+      ORDER BY xp_required ASC, id ASC
+    `;
 
-    // ===== Rating-based badges =====
-    const rating = (p.rating_avg || 0) * 100; // Convert to integer (4.5 = 450)
-    if (rating >= 450) {
-      const badgeId = badgesByCondition['rating_450'];
-      if (badgeId) badgesToCheck.push(badgeId);
-    }
+    console.log(`📚 Found ${allBadges.length} badges in database`);
 
-    // ===== Completion-based badges =====
-    if (p.total_services_completed >= 10) {
-      const badgeId = badgesByCondition['services_10'];
-      if (badgeId) badgesToCheck.push(badgeId);
-    }
-
-    // Award badges
-    for (const badgeId of badgesToCheck) {
+    // Check each badge condition
+    for (const badge of allBadges) {
       try {
+        // Skip if user already has this badge
         const existing = await sql`
-          SELECT * FROM user_badges
-          WHERE user_id = ${userId} AND badge_id = ${badgeId}
+          SELECT id FROM user_badges
+          WHERE user_id = ${userId} AND badge_id = ${badge.id}
         `;
 
-        if (existing.length === 0) {
+        if (existing.length > 0) {
+          console.log(`⏭️  Badge ${badge.id} (${badge.name}) - already owned`);
+          continue;
+        }
+
+        let shouldAward = false;
+        const xpRequired = badge.xp_required || 0;
+
+        // Check XP-based badges
+        if (badge.condition_type === 'xp' || (badge.condition_type === 'level' && xpRequired > 0)) {
+          if (p.xp_total >= xpRequired) {
+            console.log(`✅ XP Badge ${badge.id} (${badge.name}) - EARNED! (${p.xp_total} >= ${xpRequired})`);
+            shouldAward = true;
+          } else {
+            console.log(`⏳ XP Badge ${badge.id} (${badge.name}) - ${p.xp_total}/${xpRequired} XP`);
+          }
+        }
+        // Check rating-based badges
+        else if (badge.condition_type === 'avg_rating' || badge.condition_type === 'rating') {
+          const ratingThreshold = xpRequired / 100; // Convert 450 → 4.5
+          if (p.rating_avg >= ratingThreshold) {
+            console.log(`✅ Rating Badge ${badge.id} (${badge.name}) - EARNED! (${p.rating_avg} >= ${ratingThreshold})`);
+            shouldAward = true;
+          } else {
+            console.log(`⏳ Rating Badge ${badge.id} (${badge.name}) - ${p.rating_avg}/${ratingThreshold} rating`);
+          }
+        }
+        // Check service completion badges
+        else if (badge.condition_type === 'completed_services' || badge.condition_type === 'services') {
+          if (p.total_services_completed >= xpRequired) {
+            console.log(`✅ Services Badge ${badge.id} (${badge.name}) - EARNED! (${p.total_services_completed} >= ${xpRequired})`);
+            shouldAward = true;
+          } else {
+            console.log(`⏳ Services Badge ${badge.id} (${badge.name}) - ${p.total_services_completed}/${xpRequired} services`);
+          }
+        }
+        // Check first booking/milestone badges
+        else if (badge.condition_type === 'first_booking' || badge.condition_type === 'milestone') {
+          if (p.total_services_completed >= 1) {
+            console.log(`✅ Milestone Badge ${badge.id} (${badge.name}) - EARNED! (first booking)`);
+            shouldAward = true;
+          }
+        }
+
+        // Award the badge if conditions met
+        if (shouldAward) {
           const awarded = await sql`
             INSERT INTO user_badges(user_id, badge_id, earned_at)
-            VALUES (${userId}, ${badgeId}, NOW())
+            VALUES (${userId}, ${badge.id}, NOW())
             RETURNING *
           `;
           awardedBadges.push(awarded[0]);
-          console.log(`✅ Badge awarded to user ${userId}: Badge ID ${badgeId}`);
+          console.log(`🎉 Badge awarded: ${badge.id} (${badge.name})`);
         }
-      } catch (err) {
-        console.log(`⚠️ Error awarding badge ${badgeId}:`, err.message);
+      } catch (badgeErr) {
+        console.log(`⚠️ Error processing badge ${badge.id}:`, badgeErr.message);
       }
     }
 
+    console.log(`📊 Sync complete - ${awardedBadges.length} new badges awarded`);
     return { newBadges: awardedBadges, success: true };
   } catch (error) {
-    console.log("Error syncing badges for user:", error);
+    console.log("❌ Error syncing badges for user:", error);
     return { newBadges: [], success: false };
   }
 }

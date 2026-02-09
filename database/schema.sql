@@ -298,6 +298,47 @@ export async function initDB() {
       CREATE INDEX idx_user_challenges_completed_at ON user_challenges(completed_at DESC);
 
       -- ===================================
+      -- 12. MESSAGES TABLE
+      -- ===================================
+      CREATE TABLE messages (
+        id SERIAL PRIMARY KEY,
+        sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        receiver_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX idx_messages_sender_id ON messages(sender_id);
+      CREATE INDEX idx_messages_receiver_id ON messages(receiver_id);
+      CREATE INDEX idx_messages_created_at ON messages(created_at DESC);
+      CREATE INDEX idx_messages_is_read ON messages(is_read);
+
+      -- ===================================
+      -- 13. NOTIFICATIONS TABLE
+      -- ===================================
+      CREATE TABLE notifications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        sender_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        service_id INTEGER REFERENCES services(id) ON DELETE CASCADE,
+        type VARCHAR(100) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        content TEXT,
+        is_read BOOLEAN DEFAULT FALSE,
+        action_url VARCHAR(500),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX idx_notifications_user_id ON notifications(user_id);
+      CREATE INDEX idx_notifications_type ON notifications(type);
+      CREATE INDEX idx_notifications_is_read ON notifications(is_read);
+      CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
+      CREATE INDEX idx_notifications_service_id ON notifications(service_id);
+
+      -- ===================================
       -- STORED PROCEDURES / FUNCTIONS
       -- ===================================
 

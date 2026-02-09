@@ -201,7 +201,62 @@ export async function createService(req, res) {
       RETURNING *
     `;
 
-    console.log("✅ Service created:", service[0].id);
+    const serviceId = service[0].id;
+    console.log("✅ Service created:", serviceId);
+
+    // 🔹 Si c'est une demande (type = "demande"), envoyer des notifications aux utilisateurs avec le badge de cette catégorie
+    if (type === "demande") {
+      try {
+        // Récupérer le nom de la catégorie
+        const categoryData = await sql`
+          SELECT name FROM categories WHERE id = ${category_id}
+        `;
+        const categoryName = categoryData[0]?.name;
+        
+        if (categoryName) {
+          // Chercher tous les badges dont le nom contient le nom de la catégorie (ou équivalent)
+          const badgesIds = await sql`
+            SELECT DISTINCT ub.user_id
+            FROM user_badges ub
+            JOIN badges b ON ub.badge_id = b.id
+            WHERE LOWER(b.category) = LOWER(${categoryName})
+               OR LOWER(b.name) LIKE LOWER(${'%' + categoryName + '%'})
+          `;
+
+          console.log(`📢 Found ${badgesIds.length} users with ${categoryName} badge`);
+
+          // Créer une notification pour chaque utilisateur avec le badge
+          for (const badgeUser of badgesIds) {
+            await sql`
+              INSERT INTO notifications (
+                user_id,
+                sender_id,
+                service_id,
+                type,
+                title,
+                content,
+                action_url
+              )
+              VALUES (
+                ${badgeUser.user_id},
+                ${user_id},
+                ${serviceId},
+                'badge_match',
+                'Nouvelle demande dans votre domaine!',
+                ${`Un utilisateur recherche: ${title}`},
+                ${`/service/${serviceId}`}
+              )
+            `;
+          }
+
+          console.log(`✅ Notifications sent to ${badgesIds.length} users with ${categoryName} badge`);
+        }
+      } catch (notificationError) {
+        console.error("⚠️ Error sending notifications:", notificationError);
+        // Ne pas échouer la création du service si les notifications échouent
+      }
+    }
+
     res.status(201).json(service[0]);
   } catch (error) {
     console.error("❌ Error creating service:", error);

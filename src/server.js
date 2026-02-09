@@ -49,6 +49,7 @@ import challengesRoute from "./routes/challengesRoute.js";
 import userChallengesRoute from "./routes/userChallengesRoute.js";
 import uploadRoute from "./routes/uploadRoute.js";
 import adminRoute from "./routes/adminRoute.js";
+import notificationsRoute from "./routes/notificationsRoute.js";
 
 console.log("9️⃣ [INIT] All routes imported");
 
@@ -183,6 +184,7 @@ app.use("/api/profiles", profilesRoute);
 app.use("/api/services", servicesRoute);
 app.use("/api/bookings", bookingsRoute);
 app.use("/api/messages", messagesRoute);
+app.use("/api/notifications", notificationsRoute);
 app.use("/api/reviews", reviewsRoute);
 app.use("/api/badges", badgesRoute);
 app.use("/api/user-badges", userBadgesRoute);

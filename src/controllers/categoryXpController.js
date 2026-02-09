@@ -1,4 +1,5 @@
 import { sql } from "../config/db.js";
+import { syncBadgesForUser } from "./userBadgesController.js";
 
 export async function getCategoryXp(req, res) {
   try {
@@ -35,6 +36,9 @@ export async function createCategoryXp(req, res) {
       RETURNING *
     `;
 
+    // 🎯 Sync badges for the user after XP is added
+    await syncBadgesForUser(user_id);
+
     res.status(201).json(xpRow[0]);
   } catch (error) {
     console.log("Error creating category xp", error);
@@ -57,6 +61,9 @@ export async function updateCategoryXp(req, res) {
     if (updated.length === 0) {
       return res.status(404).json({ message: "Category xp not found" });
     }
+
+    // 🎯 Sync badges for the user after XP is updated
+    await syncBadgesForUser(updated[0].user_id);
 
     res.status(200).json(updated[0]);
   } catch (error) {

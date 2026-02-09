@@ -1,4 +1,5 @@
 import { sql } from "../config/db.js";
+import { syncBadgesForUser } from "./userBadgesController.js";
 
 /* =======================
    GET ALL SERVICES
@@ -256,6 +257,9 @@ export async function createService(req, res) {
         // Ne pas échouer la création du service si les notifications échouent
       }
     }
+
+    // 🎯 Sync badges for the user after service is published
+    await syncBadgesForUser(user_id);
 
     res.status(201).json(service[0]);
   } catch (error) {

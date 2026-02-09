@@ -1,4 +1,5 @@
 import { sql } from "../config/db.js";
+import { syncBadgesForUser } from "./userBadgesController.js";
 
 // Créer une réservation
 export async function createBooking(req, res) {
@@ -257,6 +258,10 @@ export async function acceptBooking(req, res) {
       RETURNING *
     `;
 
+    // 🎯 Sync badges for provider and client after booking acceptance
+    await syncBadgesForUser(provider_id);
+    await syncBadgesForUser(updated[0].client_id);
+
     res.json(updated);
   } catch (error) {
     console.error("Erreur acceptation réservation:", error);
@@ -297,6 +302,10 @@ export async function completeBooking(req, res) {
 
     // 🎯 Mettre à jour la fiabilité (ancien status → completed)
     await updateReliabilityScore(booking.client_id, booking.provider_id, booking.status, 'completed');
+
+    // 🎯 Sync badges for both provider and client after booking completion
+    await syncBadgesForUser(booking.provider_id);
+    await syncBadgesForUser(booking.client_id);
 
     res.json(updated);
   } catch (error) {

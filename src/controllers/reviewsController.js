@@ -1,4 +1,5 @@
 import { sql } from "../config/db.js";
+import { syncBadgesForUser } from "./userBadgesController.js";
 
 export async function getReviews(req, res) {
   try {
@@ -105,6 +106,9 @@ export async function createReview(req, res) {
       `;
       console.log("✅ Profil note mise à jour:", providerAvgRating[0].rating_avg);
     }
+
+    // 🎯 Sync badges for the provider after rating is updated
+    await syncBadgesForUser(provider_id);
 
     res.status(201).json(review);
   } catch (error) {

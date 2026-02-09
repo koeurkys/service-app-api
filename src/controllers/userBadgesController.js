@@ -166,18 +166,17 @@ export async function awardBadge(req, res) {
   }
 }
 
-// Sync badges - automatically check and award badges based on user progress
-export async function syncBadges(req, res) {
+// 🎯 Internal function to sync badges for a user (can be called from other controllers)
+export async function syncBadgesForUser(userId) {
   try {
-    const userId = req.user.id;
-
     // Get user profile data
     const profile = await sql`
       SELECT * FROM profiles WHERE user_id = ${userId}
     `;
 
     if (profile.length === 0) {
-      return res.status(404).json({ message: "Profile not found" });
+      console.log(`⚠️ Profile not found for user ${userId}`);
+      return { newBadges: [], success: false };
     }
 
     const p = profile[0];
@@ -220,13 +219,27 @@ export async function syncBadges(req, res) {
           RETURNING *
         `;
         awardedBadges.push(awarded[0]);
+        console.log(`✅ Badge awarded to user ${userId}: Badge ID ${badgeId}`);
       }
     }
 
+    return { newBadges: awardedBadges, success: true };
+  } catch (error) {
+    console.log("Error syncing badges for user:", error);
+    return { newBadges: [], success: false };
+  }
+}
+
+// Sync badges - automatically check and award badges based on user progress
+export async function syncBadges(req, res) {
+  try {
+    const userId = req.user.id;
+    const result = await syncBadgesForUser(userId);
+
     res.status(200).json({ 
       message: "Badges synced successfully",
-      newBadges: awardedBadges,
-      count: awardedBadges.length
+      newBadges: result.newBadges,
+      count: result.newBadges.length
     });
   } catch (error) {
     console.log("Error syncing badges:", error);

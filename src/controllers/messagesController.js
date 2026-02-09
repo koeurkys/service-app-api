@@ -1,5 +1,6 @@
 import { sql } from "../config/db.js";
 import { io } from "../server.js";
+import { syncBadgesForUser } from "./userBadgesController.js";
 
 // Récupérer la conversation entre deux utilisateurs
 export const getConversation = async (req, res) => {
@@ -82,6 +83,9 @@ export const sendMessage = async (req, res) => {
     const messageData = message[0];
     io.emit(`message-${receiver_id}`, messageData);
     console.log(`📨 Message émis au récepteur ${receiver_id}`);
+
+    // 🎯 Sync badges for the sender after sending first message
+    await syncBadgesForUser(sender_id);
 
     res.status(201).json(messageData);
   } catch (err) {

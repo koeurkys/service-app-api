@@ -183,43 +183,74 @@ export async function syncBadgesForUser(userId) {
     const awardedBadges = [];
     const badgesToCheck = [];
 
-    // Check XP-based badges
-    if (p.xp_total >= 100) badgesToCheck.push(5);
-    if (p.xp_total >= 500) badgesToCheck.push(6);
-    if (p.xp_total >= 1000) badgesToCheck.push(7);
-    if (p.xp_total >= 2000) badgesToCheck.push(8);
+    // Get all badges from DB to find correct IDs
+    const allBadges = await sql`
+      SELECT id, name, description, xp_required, condition_type FROM badges
+      ORDER BY xp_required ASC
+    `;
 
-    // Check rating-based badges
-    const rating = p.rating_avg || 0;
-    if (rating >= 4.0) badgesToCheck.push(18);
-    if (rating >= 4.5) badgesToCheck.push(19);
-    if (rating >= 4.8) badgesToCheck.push(20);
+    // Create a map of badges by xp_required for easier lookup
+    const badgesByCondition = {};
+    allBadges.forEach(b => {
+      if (b.condition_type === 'xp') {
+        badgesByCondition[`xp_${b.xp_required}`] = b.id;
+      } else if (b.condition_type === 'avg_rating') {
+        badgesByCondition[`rating_${b.xp_required}`] = b.id;
+      } else if (b.condition_type === 'completed_services') {
+        badgesByCondition[`services_${b.xp_required}`] = b.id;
+      }
+    });
 
-    // Check completion-based badges
-    if (p.total_services_completed >= 1) badgesToCheck.push(3); // First completion
-    if (p.total_services_completed >= 5) badgesToCheck.push(14); // Launcher
-    if (p.total_services_completed >= 10) badgesToCheck.push(15); // Productive
-    if (p.total_services_completed >= 25) badgesToCheck.push(16); // Hyperactive
-    if (p.total_services_completed >= 50) badgesToCheck.push(17); // Obsessed
+    console.log(`🎯 Syncing badges for user ${userId}`);
+    console.log(`📊 XP: ${p.xp_total}, Rating: ${p.rating_avg}, Services: ${p.total_services_completed}, Published: ${p.total_services_published}`);
 
-    // Check published services
-    if (p.total_services_published >= 1) badgesToCheck.push(2); // First request
+    // ===== XP-based badges =====
+    // Look for badge by xp_required value
+    if (p.xp_total >= 100) {
+      const badgeId = badgesByCondition['xp_100'];
+      if (badgeId) badgesToCheck.push(badgeId);
+    }
+    if (p.xp_total >= 500) {
+      const badgeId = badgesByCondition['xp_500'];
+      if (badgeId) badgesToCheck.push(badgeId);
+    }
+    if (p.xp_total >= 1000) {
+      const badgeId = badgesByCondition['xp_1000'];
+      if (badgeId) badgesToCheck.push(badgeId);
+    }
+
+    // ===== Rating-based badges =====
+    const rating = (p.rating_avg || 0) * 100; // Convert to integer (4.5 = 450)
+    if (rating >= 450) {
+      const badgeId = badgesByCondition['rating_450'];
+      if (badgeId) badgesToCheck.push(badgeId);
+    }
+
+    // ===== Completion-based badges =====
+    if (p.total_services_completed >= 10) {
+      const badgeId = badgesByCondition['services_10'];
+      if (badgeId) badgesToCheck.push(badgeId);
+    }
 
     // Award badges
     for (const badgeId of badgesToCheck) {
-      const existing = await sql`
-        SELECT * FROM user_badges
-        WHERE user_id = ${userId} AND badge_id = ${badgeId}
-      `;
-
-      if (existing.length === 0) {
-        const awarded = await sql`
-          INSERT INTO user_badges(user_id, badge_id, earned_at)
-          VALUES (${userId}, ${badgeId}, NOW())
-          RETURNING *
+      try {
+        const existing = await sql`
+          SELECT * FROM user_badges
+          WHERE user_id = ${userId} AND badge_id = ${badgeId}
         `;
-        awardedBadges.push(awarded[0]);
-        console.log(`✅ Badge awarded to user ${userId}: Badge ID ${badgeId}`);
+
+        if (existing.length === 0) {
+          const awarded = await sql`
+            INSERT INTO user_badges(user_id, badge_id, earned_at)
+            VALUES (${userId}, ${badgeId}, NOW())
+            RETURNING *
+          `;
+          awardedBadges.push(awarded[0]);
+          console.log(`✅ Badge awarded to user ${userId}: Badge ID ${badgeId}`);
+        }
+      } catch (err) {
+        console.log(`⚠️ Error awarding badge ${badgeId}:`, err.message);
       }
     }
 

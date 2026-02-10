@@ -151,15 +151,17 @@ export async function getCategoryXpByMe(req, res) {
     // 2️⃣ Récupérer l'XP par catégorie
     const categoryXpData = await sql`
       SELECT
+        c.id,
         c.name AS category,
         c.slug AS category_slug,
-        COALESCE(cxp.xp, 0) AS xp,
-        COALESCE(cxp.level, 1) AS level,
-        COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'completed') AS completed_jobs
+        COALESCE(cxp.xp, 0)::INTEGER AS xp,
+        COALESCE(cxp.level, 1)::INTEGER AS level,
+        COUNT(DISTINCT s.id) AS total_services,
+        COUNT(DISTINCT CASE WHEN b.status = 'completed' THEN b.id END)::INTEGER AS completed_jobs
       FROM categories c
       LEFT JOIN category_xp cxp ON cxp.category_id = c.id AND cxp.user_id = ${user.id}
       LEFT JOIN services s ON s.category_id = c.id AND s.user_id = ${user.id}
-      LEFT JOIN bookings b ON b.service_id = s.id AND b.status = 'completed'
+      LEFT JOIN bookings b ON b.service_id = s.id
       GROUP BY c.id, c.name, c.slug, cxp.xp, cxp.level
       ORDER BY COALESCE(cxp.xp, 0) DESC
     `;
@@ -167,7 +169,7 @@ export async function getCategoryXpByMe(req, res) {
     res.json(categoryXpData || []);
   } catch (error) {
     console.error("Category XP error:", error);
-    res.status(500).json({ message: "Erreur serveur" });
+    res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 }
 

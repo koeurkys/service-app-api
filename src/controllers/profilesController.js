@@ -4,11 +4,25 @@ export async function getProfileByUserId(req, res) {
   try {
     const { userId } = req.params;
 
-    // Récupérer l'utilisateur
+    // Récupérer l'utilisateur avec les données du profil
     const [user] = await sql`
-      SELECT id, name, email, avatar_url, created_at, role
-      FROM users
-      WHERE id = ${userId}
+      SELECT 
+        u.id, 
+        u.name, 
+        u.email, 
+        u.avatar_url, 
+        u.created_at, 
+        u.role,
+        u.clerk_id,
+        p.xp_total,
+        p.rating_avg,
+        p.level,
+        p.certified,
+        p.bio,
+        p.reliability_score
+      FROM users u
+      LEFT JOIN profiles p ON p.user_id = u.id
+      WHERE u.id = ${userId}
     `;
 
     if (!user) {
@@ -149,6 +163,51 @@ export async function getCategoryXpByMe(req, res) {
     }
 
     // 2️⃣ Récupérer l'XP par catégorie
+    const categoryXpData = await sql`
+      SELECT
+        c.id,
+        c.name AS category,
+        c.slug AS category_slug,
+        COALESCE(cxp.xp, 0)::INTEGER AS xp,
+        COALESCE(cxp.level, 1)::INTEGER AS level,
+        (COALESCE(cxp.level, 1)::INTEGER * 50)::INTEGER AS next_level_xp,
+        COUNT(DISTINCT s.id) AS total_services,
+        COUNT(DISTINCT CASE WHEN b.status = 'completed' THEN b.id END)::INTEGER AS completed_jobs
+      FROM categories c
+      LEFT JOIN category_xp cxp ON cxp.category_id = c.id AND cxp.user_id = ${user.id}
+      LEFT JOIN services s ON s.category_id = c.id AND s.user_id = ${user.id}
+      LEFT JOIN bookings b ON b.service_id = s.id
+      GROUP BY c.id, c.name, c.slug, cxp.xp, cxp.level
+      ORDER BY COALESCE(cxp.xp, 0) DESC
+    `;
+
+    res.json(categoryXpData || []);
+  } catch (error) {
+    console.error("Category XP error:", error);
+    res.status(500).json({ message: "Erreur serveur", error: error.message });
+  }
+}
+
+export async function getCategoryXpByUserId(req, res) {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
+
+    // Check if user exists
+    const [user] = await sql`
+      SELECT id
+      FROM users
+      WHERE id = ${userId}
+    `;
+
+    if (!user) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    // Récupérer l'XP par catégorie
     const categoryXpData = await sql`
       SELECT
         c.id,

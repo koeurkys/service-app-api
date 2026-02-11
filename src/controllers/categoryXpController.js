@@ -14,8 +14,12 @@ async function syncUserTotalXP(userId) {
     `;
     
     console.log("📊 Résultat SUM query:", totalXpResult);
-    const newTotalXp = totalXpResult[0]?.total_xp || 0;
-    console.log("📊 Total XP calculé:", newTotalXp, "Type:", typeof newTotalXp);
+    let newTotalXp = totalXpResult[0]?.total_xp || 0;
+    console.log("📊 Total XP AVANT conversion:", newTotalXp, "Type:", typeof newTotalXp);
+    
+    // ⚠️ IMPORTANT: Convertir en nombre car PostgreSQL retourne une string
+    newTotalXp = parseInt(newTotalXp, 10) || 0;
+    console.log("📊 Total XP APRÈS conversion:", newTotalXp, "Type:", typeof newTotalXp);
     
     // Mettre à jour le profil avec le nouveau total
     console.log("🔄 UPDATE profiles SET xp_total = ${newTotalXp} WHERE user_id = ${userId}");
@@ -26,6 +30,7 @@ async function syncUserTotalXP(userId) {
     `;
     
     console.log("📊 Résultat UPDATE:", updateResult);
+    console.log("📊 Nombre de lignes mises à jour:", updateResult.length);
     console.log("✅ Profile total_xp mis à jour à:", newTotalXp);
   } catch (error) {
     console.error("❌ Erreur lors de la synchronisation du total_xp:", error);

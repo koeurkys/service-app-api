@@ -1,6 +1,34 @@
 import { sql } from "../config/db.js";
 import { syncBadgesForUser } from "./userBadgesController.js";
 
+// 🎯 Fonction pour synchroniser le total_xp du profil avec la somme des category_xp
+async function syncUserTotalXP(userId) {
+  try {
+    console.log("🔄 Synchronisation du total_xp pour l'utilisateur", userId);
+    
+    // Calculer la somme de tous les XP des catégories
+    const totalXpResult = await sql`
+      SELECT COALESCE(SUM(xp), 0) as total_xp
+      FROM category_xp
+      WHERE user_id = ${userId}
+    `;
+    
+    const newTotalXp = totalXpResult[0]?.total_xp || 0;
+    console.log("📊 Total XP calculé:", newTotalXp);
+    
+    // Mettre à jour le profil avec le nouveau total
+    await sql`
+      UPDATE profiles
+      SET xp_total = ${newTotalXp}, updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = ${userId}
+    `;
+    
+    console.log("✅ Profile total_xp mis à jour à:", newTotalXp);
+  } catch (error) {
+    console.error("❌ Erreur lors de la synchronisation du total_xp:", error);
+  }
+}
+
 export async function getCategoryXp(req, res) {
   try {
     const xp = await sql`SELECT * FROM category_xp ORDER BY xp DESC`;
@@ -36,6 +64,9 @@ export async function createCategoryXp(req, res) {
       RETURNING *
     `;
 
+    // 🎯 Sync XP total for the user
+    await syncUserTotalXP(user_id);
+
     // 🎯 Sync badges for the user after XP is added
     await syncBadgesForUser(user_id);
 
@@ -61,6 +92,9 @@ export async function updateCategoryXp(req, res) {
     if (updated.length === 0) {
       return res.status(404).json({ message: "Category xp not found" });
     }
+
+    // 🎯 Sync XP total for the user after XP is updated
+    await syncUserTotalXP(updated[0].user_id);
 
     // 🎯 Sync badges for the user after XP is updated
     await syncBadgesForUser(updated[0].user_id);

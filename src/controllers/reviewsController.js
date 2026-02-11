@@ -165,12 +165,12 @@ export async function createReview(req, res) {
       console.log("✅ Profil note mise à jour:", providerAvgRating[0].rating_avg);
     }
 
-    // 🎯 SECTION AJOUT DE XP - Ajouter 2 XP UNIQUEMENT pour les NOUVELLES notes
+    // 🎯 SECTION AJOUT DE XP - Ajouter XP UNIQUEMENT pour les NOUVELLES notes
     if (existingReview.length === 0) {
       console.log("═══════════════════════════════════════════");
       console.log("🎯 DÉBUT - AJOUT DE XP (NOUVELLE NOTE)");
       console.log("═══════════════════════════════════════════");
-      console.log("📍 Provider ID: " + provider_id + " | Service ID: " + service_id);
+      console.log("📍 Provider ID: " + provider_id + " | Reviewer ID: " + reviewer_id + " | Service ID: " + service_id);
       
       try {
         // Récupérer la catégorie du service
@@ -187,59 +187,84 @@ export async function createReview(req, res) {
         if (serviceData.length > 0 && serviceData[0].category_id) {
           const category_id = serviceData[0].category_id;
           console.log("🎓 Category ID:", category_id);
+          
+          // ═══════════════════════════════════════════
+          // 🎯 AJOUTER 10 XP AU PROVIDER
+          // ═══════════════════════════════════════════
+          console.log("\n📍 --- PROVIDER (+10 XP) ---");
           console.log("🧑 Provider ID:", provider_id);
           console.log("🔍 Recherche du XP existant pour user", provider_id, "category", category_id);
           
-          // Vérifier si l'utilisateur a déjà du XP dans cette catégorie
-          const existingCategoryXp = await sql`
+          const existingProviderXp = await sql`
             SELECT id, xp FROM category_xp
             WHERE user_id = ${provider_id} AND category_id = ${category_id}
           `;
           
-          console.log("🔍 Recherche complétée. Résultat:", existingCategoryXp);
-          console.log("🔍 XP existant trouvé?", existingCategoryXp.length > 0);
+          console.log("🔍 XP existant trouvé?", existingProviderXp.length > 0);
           
-          if (existingCategoryXp.length > 0) {
-            // Mettre à jour le XP existant
-            console.log("📈 Avant UPDATE - XP actuel:", existingCategoryXp[0].xp);
-            console.log("📝 Exécution: UPDATE category_xp SET xp = xp + 2 WHERE user_id = ${provider_id} AND category_id = ${category_id}");
-            
-            const updated = await sql`
+          if (existingProviderXp.length > 0) {
+            console.log("📈 Avant UPDATE - XP actuel:", existingProviderXp[0].xp);
+            const updatedProvider = await sql`
               UPDATE category_xp
-              SET xp = xp + 2
+              SET xp = xp + 10
               WHERE user_id = ${provider_id} AND category_id = ${category_id}
               RETURNING *
             `;
-            
-            console.log("📊 Résultat UPDATE:", updated);
-            console.log("📊 Nombre de lignes mises à jour:", updated.length);
-            
-            if (updated.length > 0) {
-              console.log("✅ SUCCÈS - XP mis à jour: +2");
-              console.log("📊 Nouvelle valeur XP:", updated[0].xp);
-            } else {
-              console.warn("⚠️ ATTENTION - UPDATE n'a retourné aucune ligne!");
-            }
+            console.log("✅ SUCCÈS - Provider XP mis à jour: +10");
+            console.log("📊 Nouvelle valeur XP:", updatedProvider[0].xp);
           } else {
-            // Créer une nouvelle ligne avec 2 XP
-            console.log("✨ Création du XP - Pas d'XP existant");
-            console.log("📝 Exécution: INSERT INTO category_xp(user_id, category_id, xp) VALUES (${provider_id}, ${category_id}, 2)");
-            
-            const created = await sql`
+            const createdProvider = await sql`
               INSERT INTO category_xp(user_id, category_id, xp)
-              VALUES (${provider_id}, ${category_id}, 2)
+              VALUES (${provider_id}, ${category_id}, 10)
               RETURNING *
             `;
-            
-            console.log("📊 Résultat INSERT:", created);
-            console.log("✅ SUCCÈS - XP créé avec 2 points");
-            console.log("📊 Nouvelle entrée:", created[0]);
+            console.log("✅ SUCCÈS - Provider XP créé avec 10 points");
+            console.log("📊 Nouvelle entrée:", createdProvider[0]);
           }
           
-          // 🔄 Synchroniser le total_xp du profil avec la somme des category_xp
-          console.log("🔄 Synchronisation du total_xp...");
+          // Synchroniser le total XP du provider
+          console.log("🔄 Synchronisation du total_xp pour provider", provider_id);
           await syncUserTotalXP(provider_id);
-          console.log("✅ Synchronisation complétée");
+          console.log("✅ Provider total_xp synchronisé");
+          
+          // ═══════════════════════════════════════════
+          // 📝 AJOUTER 2 XP AU REVIEWER
+          // ═══════════════════════════════════════════
+          console.log("\n📝 --- REVIEWER (+2 XP) ---");
+          console.log("👤 Reviewer ID:", reviewer_id);
+          console.log("🔍 Recherche du XP existant pour user", reviewer_id, "category", category_id);
+          
+          const existingReviewerXp = await sql`
+            SELECT id, xp FROM category_xp
+            WHERE user_id = ${reviewer_id} AND category_id = ${category_id}
+          `;
+          
+          console.log("🔍 XP existant trouvé?", existingReviewerXp.length > 0);
+          
+          if (existingReviewerXp.length > 0) {
+            console.log("📈 Avant UPDATE - XP actuel:", existingReviewerXp[0].xp);
+            const updatedReviewer = await sql`
+              UPDATE category_xp
+              SET xp = xp + 2
+              WHERE user_id = ${reviewer_id} AND category_id = ${category_id}
+              RETURNING *
+            `;
+            console.log("✅ SUCCÈS - Reviewer XP mis à jour: +2");
+            console.log("📊 Nouvelle valeur XP:", updatedReviewer[0].xp);
+          } else {
+            const createdReviewer = await sql`
+              INSERT INTO category_xp(user_id, category_id, xp)
+              VALUES (${reviewer_id}, ${category_id}, 2)
+              RETURNING *
+            `;
+            console.log("✅ SUCCÈS - Reviewer XP créé avec 2 points");
+            console.log("📊 Nouvelle entrée:", createdReviewer[0]);
+          }
+          
+          // Synchroniser le total XP du reviewer
+          console.log("🔄 Synchronisation du total_xp pour reviewer", reviewer_id);
+          await syncUserTotalXP(reviewer_id);
+          console.log("✅ Reviewer total_xp synchronisé");
         } else {
           console.warn("❌ ERREUR - Service non trouvé ou pas de category_id");
         }

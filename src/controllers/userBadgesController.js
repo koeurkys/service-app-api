@@ -84,8 +84,60 @@ export async function getUserBadges(req, res) {
 export async function getUserBadgesByUserId(req, res) {
   try {
     const { userId } = req.params;
-    const badges = await sql`SELECT * FROM user_badges WHERE user_id = ${userId} ORDER BY earned_at DESC`;
-    res.status(200).json(badges);
+
+    // Get earned badges with full details
+    const userBadges = await sql`
+      SELECT ub.*, b.*, ub.earned_at
+      FROM user_badges ub
+      JOIN badges b ON ub.badge_id = b.id
+      WHERE ub.user_id = ${userId}
+      ORDER BY ub.earned_at DESC
+    `;
+
+    // Get profile for progress calculation
+    const profile = await sql`
+      SELECT * FROM profiles
+      WHERE user_id = ${userId}
+    `;
+
+    const earnedBadgeIds = userBadges.map(b => b.badge_id);
+    
+    // Get all badges to calculate locked badge progress
+    const allBadges = await sql`
+      SELECT * FROM badges
+      ORDER BY xp_required ASC, created_at ASC
+    `;
+
+    const lockedBadges = allBadges.filter(b => !earnedBadgeIds.includes(b.id));
+
+    // Calculate progress for locked badges
+    const progress = {};
+    if (profile.length > 0) {
+      const p = profile[0];
+      
+      // XP badges progress
+      progress[5] = Math.min(100, (p.xp_total / 100) * 100); // Amateur (100 XP)
+      progress[6] = Math.min(100, (p.xp_total / 500) * 100); // Confirmed (500 XP)
+      progress[7] = Math.min(100, (p.xp_total / 1000) * 100); // Professional (1000 XP)
+      progress[8] = Math.min(100, (p.xp_total / 2000) * 100); // Legendary (2000 XP)
+      
+      // Rating badges
+      const rating = p.rating_avg || 0;
+      progress[18] = Math.min(100, (rating / 4) * 100); // De Confiance (4.0)
+      progress[19] = Math.min(100, (rating / 4.5) * 100); // Excellent (4.5)
+      progress[20] = Math.min(100, (rating / 4.8) * 100); // Perfect (4.8)
+      
+      // Completion badges
+      progress[15] = Math.min(100, (p.total_services_completed / 10) * 100); // Productive (10)
+      progress[16] = Math.min(100, (p.total_services_completed / 25) * 100); // Hyperactive (25)
+      progress[17] = Math.min(100, (p.total_services_completed / 50) * 100); // Obsessed (50)
+    }
+
+    res.status(200).json({
+      achievements: userBadges,
+      locked: lockedBadges,
+      progress: progress
+    });
   } catch (error) {
     console.log("Error getting user badges", error);
     res.status(500).json({ message: "Internal server error" });

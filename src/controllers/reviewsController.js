@@ -107,6 +107,41 @@ export async function createReview(req, res) {
       console.log("✅ Profil note mise à jour:", providerAvgRating[0].rating_avg);
     }
 
+    // 🎯 Ajouter 2 XP au prestataire dans la catégorie du service
+    console.log("📍 Ajout de 2 XP pour le services dans la catégorie");
+    
+    // Récupérer la catégorie du service
+    const serviceData = await sql`
+      SELECT category_id FROM services WHERE id = ${service_id}
+    `;
+    
+    if (serviceData.length > 0 && serviceData[0].category_id) {
+      const category_id = serviceData[0].category_id;
+      
+      // Vérifier si l'utilisateur a déjà du XP dans cette catégorie
+      const existingCategoryXp = await sql`
+        SELECT id, xp FROM category_xp
+        WHERE user_id = ${provider_id} AND category_id = ${category_id}
+      `;
+      
+      if (existingCategoryXp.length > 0) {
+        // Mettre à jour le XP existant
+        await sql`
+          UPDATE category_xp
+          SET xp = xp + 2
+          WHERE user_id = ${provider_id} AND category_id = ${category_id}
+        `;
+        console.log("✅ XP mis à jour: +2 XP dans la catégorie", category_id);
+      } else {
+        // Créer une nouvelle ligne avec 2 XP
+        await sql`
+          INSERT INTO category_xp(user_id, category_id, xp)
+          VALUES (${provider_id}, ${category_id}, 2)
+        `;
+        console.log("✨ Nouveau XP créé: 2 XP dans la catégorie", category_id);
+      }
+    }
+
     // 🎯 Sync badges for the provider after rating is updated
     await syncBadgesForUser(provider_id);
 

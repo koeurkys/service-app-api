@@ -6,6 +6,18 @@ async function syncUserTotalXP(userId) {
   try {
     console.log("🔄 Synchronisation du total_xp pour l'utilisateur", userId);
     
+    // Vérifier si le profil existe
+    console.log("🔍 Vérification de l'existence du profil pour user_id", userId);
+    const profileCheck = await sql`
+      SELECT id, user_id, xp_total FROM profiles WHERE user_id = ${userId}
+    `;
+    console.log("📊 Profil trouvé?", profileCheck.length > 0, "Données:", profileCheck[0]);
+    
+    if (profileCheck.length === 0) {
+      console.warn("⚠️ ATTENTION - Profil n'existe pas pour user_id", userId);
+      return;
+    }
+    
     // Calculer la somme de tous les XP des catégories
     const totalXpResult = await sql`
       SELECT COALESCE(SUM(xp), 0) as total_xp
@@ -27,11 +39,17 @@ async function syncUserTotalXP(userId) {
       UPDATE profiles
       SET xp_total = ${newTotalXp}, updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ${userId}
+      RETURNING id, user_id, xp_total
     `;
     
     console.log("📊 Résultat UPDATE:", updateResult);
     console.log("📊 Nombre de lignes mises à jour:", updateResult.length);
-    console.log("✅ Profile total_xp mis à jour à:", newTotalXp);
+    
+    if (updateResult.length > 0) {
+      console.log("✅ Profile mis à jour avec succès - Nouvelle valeur xp_total:", updateResult[0].xp_total);
+    } else {
+      console.warn("⚠️ ATTENTION - UPDATE n'a modifié aucune ligne");
+    }
   } catch (error) {
     console.error("❌ Erreur lors de la synchronisation du total_xp:", error);
     console.error("Stack:", error.stack);

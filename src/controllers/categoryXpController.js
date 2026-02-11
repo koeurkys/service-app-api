@@ -81,6 +81,8 @@ export async function createCategoryXp(req, res) {
   try {
     const { user_id, category_id, xp } = req.body;
 
+    console.log("💾 createCategoryXp called - User:", user_id, "Category:", category_id, "XP:", xp);
+
     if (!user_id || !category_id) {
       return res.status(400).json({ message: "user_id and category_id are required" });
     }
@@ -91,10 +93,14 @@ export async function createCategoryXp(req, res) {
       RETURNING *
     `;
 
+    console.log("✅ Category XP créée:", xpRow[0]);
+
     // 🎯 Sync XP total for the user
+    console.log("🔄 Synchronisation du total XP pour user", user_id);
     await syncUserTotalXP(user_id);
 
     // 🎯 Sync badges for the user after XP is added
+    console.log("🏅 Synchronisation des badges pour user", user_id);
     await syncBadgesForUser(user_id);
 
     res.status(201).json(xpRow[0]);
@@ -109,6 +115,8 @@ export async function updateCategoryXp(req, res) {
     const { id } = req.params;
     const { xp } = req.body;
 
+    console.log("📝 updateCategoryXp called - ID:", id, "New XP:", xp);
+
     const updated = await sql`
       UPDATE category_xp
       SET xp = COALESCE(${xp}, xp)
@@ -120,10 +128,14 @@ export async function updateCategoryXp(req, res) {
       return res.status(404).json({ message: "Category xp not found" });
     }
 
+    console.log("✅ Category XP mise à jour:", updated[0]);
+
     // 🎯 Sync XP total for the user after XP is updated
+    console.log("🔄 Synchronisation du total XP pour user", updated[0].user_id);
     await syncUserTotalXP(updated[0].user_id);
 
     // 🎯 Sync badges for the user after XP is updated
+    console.log("🏅 Synchronisation des badges pour user", updated[0].user_id);
     await syncBadgesForUser(updated[0].user_id);
 
     res.status(200).json(updated[0]);
@@ -136,13 +148,38 @@ export async function updateCategoryXp(req, res) {
 export async function deleteCategoryXp(req, res) {
   try {
     const { id } = req.params;
-    const result = await sql`DELETE FROM category_xp WHERE id = ${id} RETURNING *`;
 
-    if (result.length === 0) {
+    console.log("🗑️ deleteCategoryXp called - ID:", id);
+
+    // D'abord récupérer les infos avant de supprimer
+    const toDelete = await sql`
+      SELECT id, user_id FROM category_xp WHERE id = ${id}
+    `;
+
+    if (toDelete.length === 0) {
       return res.status(404).json({ message: "Category xp not found" });
     }
 
-    res.status(200).json({ message: "Category xp deleted successfully" });
+    const userId = toDelete[0].user_id;
+    console.log("👤 User ID:", userId);
+
+    // Supprimer la ligne
+    const result = await sql`
+      DELETE FROM category_xp WHERE id = ${id}
+      RETURNING *
+    `;
+
+    console.log("✅ Category XP supprimée:", result[0]);
+
+    // 🎯 Sync XP total for the user after XP is deleted
+    console.log("🔄 Synchronisation du total XP pour user", userId);
+    await syncUserTotalXP(userId);
+
+    // 🎯 Sync badges for the user after XP is deleted
+    console.log("🏅 Synchronisation des badges pour user", userId);
+    await syncBadgesForUser(userId);
+
+    res.status(200).json({ message: "Category xp deleted successfully", deleted: result[0] });
   } catch (error) {
     console.log("Error deleting category xp", error);
     res.status(500).json({ message: "Internal server error" });

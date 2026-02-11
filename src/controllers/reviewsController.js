@@ -13,19 +13,23 @@ async function syncUserTotalXP(userId) {
       WHERE user_id = ${userId}
     `;
     
+    console.log("📊 Résultat SUM query:", totalXpResult);
     const newTotalXp = totalXpResult[0]?.total_xp || 0;
-    console.log("📊 Total XP calculé:", newTotalXp);
+    console.log("📊 Total XP calculé:", newTotalXp, "Type:", typeof newTotalXp);
     
     // Mettre à jour le profil avec le nouveau total
-    await sql`
+    console.log("🔄 UPDATE profiles SET xp_total = ${newTotalXp} WHERE user_id = ${userId}");
+    const updateResult = await sql`
       UPDATE profiles
       SET xp_total = ${newTotalXp}, updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ${userId}
     `;
     
+    console.log("📊 Résultat UPDATE:", updateResult);
     console.log("✅ Profile total_xp mis à jour à:", newTotalXp);
   } catch (error) {
     console.error("❌ Erreur lors de la synchronisation du total_xp:", error);
+    console.error("Stack:", error.stack);
   }
 }
 
@@ -147,6 +151,7 @@ export async function createReview(req, res) {
     
     try {
       // Récupérer la catégorie du service
+      console.log("🔍 Recherche du service...");
       const serviceData = await sql`
         SELECT id, category_id FROM services WHERE id = ${service_id}
       `;
@@ -160,6 +165,7 @@ export async function createReview(req, res) {
         const category_id = serviceData[0].category_id;
         console.log("🎓 Category ID:", category_id);
         console.log("🧑 Provider ID:", provider_id);
+        console.log("🔍 Recherche du XP existant pour user", provider_id, "category", category_id);
         
         // Vérifier si l'utilisateur a déjà du XP dans cette catégorie
         const existingCategoryXp = await sql`
@@ -167,27 +173,42 @@ export async function createReview(req, res) {
           WHERE user_id = ${provider_id} AND category_id = ${category_id}
         `;
         
+        console.log("🔍 Recherche complétée. Résultat:", existingCategoryXp);
         console.log("🔍 XP existant trouvé?", existingCategoryXp.length > 0);
         
         if (existingCategoryXp.length > 0) {
           // Mettre à jour le XP existant
           console.log("📈 Avant UPDATE - XP actuel:", existingCategoryXp[0].xp);
+          console.log("📝 Exécution: UPDATE category_xp SET xp = xp + 2 WHERE user_id = ${provider_id} AND category_id = ${category_id}");
+          
           const updated = await sql`
             UPDATE category_xp
             SET xp = xp + 2
             WHERE user_id = ${provider_id} AND category_id = ${category_id}
             RETURNING *
           `;
-          console.log("✅ SUCCÈS - XP mis à jour: +2");
-          console.log("📊 Nouvelle valeur XP:", updated[0].xp);
+          
+          console.log("📊 Résultat UPDATE:", updated);
+          console.log("📊 Nombre de lignes mises à jour:", updated.length);
+          
+          if (updated.length > 0) {
+            console.log("✅ SUCCÈS - XP mis à jour: +2");
+            console.log("📊 Nouvelle valeur XP:", updated[0].xp);
+          } else {
+            console.warn("⚠️ ATTENTION - UPDATE n'a retourné aucune ligne!");
+          }
         } else {
           // Créer une nouvelle ligne avec 2 XP
           console.log("✨ Création du XP - Pas d'XP existant");
+          console.log("📝 Exécution: INSERT INTO category_xp(user_id, category_id, xp) VALUES (${provider_id}, ${category_id}, 2)");
+          
           const created = await sql`
             INSERT INTO category_xp(user_id, category_id, xp)
             VALUES (${provider_id}, ${category_id}, 2)
             RETURNING *
           `;
+          
+          console.log("📊 Résultat INSERT:", created);
           console.log("✅ SUCCÈS - XP créé avec 2 points");
           console.log("📊 Nouvelle entrée:", created[0]);
         }

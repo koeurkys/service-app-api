@@ -13,19 +13,23 @@ async function syncUserTotalXP(userId) {
       WHERE user_id = ${userId}
     `;
     
+    console.log("📊 Résultat SUM query:", totalXpResult);
     const newTotalXp = totalXpResult[0]?.total_xp || 0;
-    console.log("📊 Total XP calculé:", newTotalXp);
+    console.log("📊 Total XP calculé:", newTotalXp, "Type:", typeof newTotalXp);
     
     // Mettre à jour le profil avec le nouveau total
-    await sql`
+    console.log("🔄 UPDATE profiles SET xp_total = ${newTotalXp} WHERE user_id = ${userId}");
+    const updateResult = await sql`
       UPDATE profiles
       SET xp_total = ${newTotalXp}, updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ${userId}
     `;
     
+    console.log("📊 Résultat UPDATE:", updateResult);
     console.log("✅ Profile total_xp mis à jour à:", newTotalXp);
   } catch (error) {
     console.error("❌ Erreur lors de la synchronisation du total_xp:", error);
+    console.error("Stack:", error.stack);
   }
 }
 

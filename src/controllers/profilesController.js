@@ -156,6 +156,7 @@ export async function getCategoryXpByMe(req, res) {
         c.slug AS category_slug,
         COALESCE(cxp.xp, 0)::INTEGER AS xp,
         COALESCE(cxp.level, 1)::INTEGER AS level,
+        (COALESCE(cxp.level, 1)::INTEGER * 50)::INTEGER AS next_level_xp,
         COUNT(DISTINCT s.id) AS total_services,
         COUNT(DISTINCT CASE WHEN b.status = 'completed' THEN b.id END)::INTEGER AS completed_jobs
       FROM categories c

@@ -1,5 +1,6 @@
 import { sql } from "../config/db.js";
 import { syncBadgesForUser } from "./userBadgesController.js";
+import { updateCategoryXpLevel, syncUserTotalXP } from "./categoryXpController.js";
 
 // 🎯 Fonction pour synchroniser le total_xp du profil avec la somme des category_xp
 async function syncUserTotalXP(userId) {
@@ -212,6 +213,8 @@ export async function createReview(req, res) {
             `;
             console.log("✅ SUCCÈS - Provider XP mis à jour: +10");
             console.log("📊 Nouvelle valeur XP:", updatedProvider[0].xp);
+            // Mettre à jour le niveau catégorie
+            await updateCategoryXpLevel(provider_id, category_id);
           } else {
             const createdProvider = await sql`
               INSERT INTO category_xp(user_id, category_id, xp)
@@ -220,6 +223,8 @@ export async function createReview(req, res) {
             `;
             console.log("✅ SUCCÈS - Provider XP créé avec 10 points");
             console.log("📊 Nouvelle entrée:", createdProvider[0]);
+            // Mettre à jour le niveau catégorie
+            await updateCategoryXpLevel(provider_id, category_id);
           }
           
           // Synchroniser le total XP du provider
@@ -251,6 +256,8 @@ export async function createReview(req, res) {
             `;
             console.log("✅ SUCCÈS - Reviewer XP mis à jour: +2");
             console.log("📊 Nouvelle valeur XP:", updatedReviewer[0].xp);
+            // Mettre à jour le niveau catégorie
+            await updateCategoryXpLevel(reviewer_id, category_id);
           } else {
             const createdReviewer = await sql`
               INSERT INTO category_xp(user_id, category_id, xp)
@@ -259,6 +266,8 @@ export async function createReview(req, res) {
             `;
             console.log("✅ SUCCÈS - Reviewer XP créé avec 2 points");
             console.log("📊 Nouvelle entrée:", createdReviewer[0]);
+            // Mettre à jour le niveau catégorie
+            await updateCategoryXpLevel(reviewer_id, category_id);
           }
           
           // Synchroniser le total XP du reviewer

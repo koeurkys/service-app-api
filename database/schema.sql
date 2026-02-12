@@ -82,10 +82,10 @@ export async function initDB() {
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
         xp_total INTEGER DEFAULT 0,
+        level INTEGER DEFAULT 0,
         rating_avg DECIMAL(3, 2) DEFAULT 0.00 CHECK (rating_avg >= 0 AND rating_avg <= 5),
         reliability_score DECIMAL(3, 2) DEFAULT 100.00 CHECK (reliability_score >= 0 AND reliability_score <= 100),
         certified BOOLEAN DEFAULT FALSE,
-        level INTEGER GENERATED ALWAYS AS (xp_total / 100 + 1) STORED,
         total_services_completed INTEGER DEFAULT 0,
         total_services_published INTEGER DEFAULT 0,
         bio TEXT,
@@ -238,7 +238,8 @@ export async function initDB() {
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
         xp INTEGER DEFAULT 0,
-        level INTEGER GENERATED ALWAYS AS (xp / 50 + 1) STORED,
+        level INTEGER DEFAULT 0,
+        completed_jobs INTEGER DEFAULT 0,
         UNIQUE(user_id, category_id)
       );
 

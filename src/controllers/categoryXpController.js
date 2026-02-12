@@ -1,6 +1,75 @@
 import { sql } from "../config/db.js";
 import { syncBadgesForUser } from "./userBadgesController.js";
 
+// 🎯 Fonction pour calculer le niveau en fonction de l'XP (identique au frontend)
+function calculateLevelFromXP(totalXp) {
+  if (typeof totalXp !== "number" || totalXp < 0) {
+    return 0;
+  }
+
+  let currentLevel = 0;
+
+  // Chercher le dernier niveau atteint
+  // Limiter à 100 niveaux pour éviter les boucles infinies
+  for (let level = 1; level <= 100; level++) {
+    const xpRequiredForThisLevel = getXpRequiredForLevel(level);
+    if (totalXp >= xpRequiredForThisLevel) {
+      currentLevel = level;
+    } else {
+      break;
+    }
+  }
+
+  return currentLevel;
+}
+
+// 🎯 Fonction pour obtenir l'XP cumulatif requis pour un niveau
+function getXpRequiredForLevel(level) {
+  if (level <= 0) return 0;
+  
+  let totalXp = 0;
+  // Additionner tous les XP requis pour chaque transition jusqu'au niveau cible
+  for (let i = 0; i < level; i++) {
+    totalXp += getXpRequiredForNextLevelStep(i);
+  }
+  return totalXp;
+}
+
+// 🎯 Fonction pour obtenir l'XP requis pour passer du niveau N au niveau N+1
+function getXpRequiredForNextLevelStep(level) {
+  return 100 + level * 50 + Math.pow(level, 2) * 10;
+}
+
+// 🎯 Fonction pour mettre à jour le level dans category_xp après un changement d'XP
+async function updateCategoryXpLevel(userId, categoryId) {
+  try {
+    // Récupérer le XP pour cette catégorie
+    const categoryXpData = await sql`
+      SELECT xp FROM category_xp 
+      WHERE user_id = ${userId} AND category_id = ${categoryId}
+    `;
+    
+    if (categoryXpData.length === 0) {
+      console.log("⚠️ category_xp non trouvée");
+      return;
+    }
+    
+    const xp = categoryXpData[0].xp;
+    const newLevel = calculateLevelFromXP(xp);
+    
+    // Mettre à jour le level dans category_xp
+    await sql`
+      UPDATE category_xp
+      SET level = ${newLevel}
+      WHERE user_id = ${userId} AND category_id = ${categoryId}
+    `;
+    
+    console.log(`✅ Niveau catégorie mis à jour: ${newLevel} pour ${xp} XP`);
+  } catch (error) {
+    console.error("❌ Erreur lors de la mise à jour du niveau catégorie:", error);
+  }
+}
+
 // 🎯 Fonction pour synchroniser le total_xp du profil avec la somme des category_xp
 async function syncUserTotalXP(userId) {
   try {
@@ -33,20 +102,24 @@ async function syncUserTotalXP(userId) {
     newTotalXp = parseInt(newTotalXp, 10) || 0;
     console.log("📊 Total XP APRÈS conversion:", newTotalXp, "Type:", typeof newTotalXp);
     
-    // Mettre à jour le profil avec le nouveau total
-    console.log("🔄 UPDATE profiles SET xp_total = ${newTotalXp} WHERE user_id = ${userId}");
+    // Calculer le nouveau niveau
+    const newLevel = calculateLevelFromXP(newTotalXp);
+    console.log("📊 Nouveau niveau calculé:", newLevel, "pour", newTotalXp, "XP");
+    
+    // Mettre à jour le profil avec le nouveau total et le nouveau niveau
+    console.log("🔄 UPDATE profiles SET xp_total = ${newTotalXp}, level = ${newLevel} WHERE user_id = ${userId}");
     const updateResult = await sql`
       UPDATE profiles
-      SET xp_total = ${newTotalXp}, updated_at = CURRENT_TIMESTAMP
+      SET xp_total = ${newTotalXp}, level = ${newLevel}, updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ${userId}
-      RETURNING id, user_id, xp_total
+      RETURNING id, user_id, xp_total, level
     `;
     
     console.log("📊 Résultat UPDATE:", updateResult);
     console.log("📊 Nombre de lignes mises à jour:", updateResult.length);
     
     if (updateResult.length > 0) {
-      console.log("✅ Profile mis à jour avec succès - Nouvelle valeur xp_total:", updateResult[0].xp_total);
+      console.log("✅ Profile mis à jour avec succès - Nouvelle valeur xp_total:", updateResult[0].xp_total, "- Niveau:", updateResult[0].level);
     } else {
       console.warn("⚠️ ATTENTION - UPDATE n'a modifié aucune ligne");
     }
@@ -185,3 +258,6 @@ export async function deleteCategoryXp(req, res) {
     res.status(500).json({ message: "Internal server error" });
   }
 }
+
+// Exporter les fonctions utilitaires
+export { updateCategoryXpLevel, syncUserTotalXP, calculateLevelFromXP };

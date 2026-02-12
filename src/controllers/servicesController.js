@@ -17,6 +17,7 @@ export async function getServices(req, res) {
       JOIN users u ON u.id = s.user_id
       WHERE s.status = 'active'
       ORDER BY s.created_at DESC
+      LIMIT 100
     `;
 
     res.status(200).json(services);

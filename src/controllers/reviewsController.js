@@ -2,61 +2,6 @@ import { sql } from "../config/db.js";
 import { syncBadgesForUser } from "./userBadgesController.js";
 import { updateCategoryXpLevel, syncUserTotalXP } from "./categoryXpController.js";
 
-// 🎯 Fonction pour synchroniser le total_xp du profil avec la somme des category_xp
-async function syncUserTotalXP(userId) {
-  try {
-    console.log("🔄 Synchronisation du total_xp pour l'utilisateur", userId);
-    
-    // Vérifier si le profil existe
-    console.log("🔍 Vérification de l'existence du profil pour user_id", userId);
-    const profileCheck = await sql`
-      SELECT id, user_id, xp_total FROM profiles WHERE user_id = ${userId}
-    `;
-    console.log("📊 Profil trouvé?", profileCheck.length > 0, "Données:", profileCheck[0]);
-    
-    if (profileCheck.length === 0) {
-      console.warn("⚠️ ATTENTION - Profil n'existe pas pour user_id", userId);
-      return;
-    }
-    
-    // Calculer la somme de tous les XP des catégories
-    const totalXpResult = await sql`
-      SELECT COALESCE(SUM(xp), 0) as total_xp
-      FROM category_xp
-      WHERE user_id = ${userId}
-    `;
-    
-    console.log("📊 Résultat SUM query:", totalXpResult);
-    let newTotalXp = totalXpResult[0]?.total_xp || 0;
-    console.log("📊 Total XP AVANT conversion:", newTotalXp, "Type:", typeof newTotalXp);
-    
-    // ⚠️ IMPORTANT: Convertir en nombre car PostgreSQL retourne une string
-    newTotalXp = parseInt(newTotalXp, 10) || 0;
-    console.log("📊 Total XP APRÈS conversion:", newTotalXp, "Type:", typeof newTotalXp);
-    
-    // Mettre à jour le profil avec le nouveau total
-    console.log("🔄 UPDATE profiles SET xp_total = ${newTotalXp} WHERE user_id = ${userId}");
-    const updateResult = await sql`
-      UPDATE profiles
-      SET xp_total = ${newTotalXp}, updated_at = CURRENT_TIMESTAMP
-      WHERE user_id = ${userId}
-      RETURNING id, user_id, xp_total
-    `;
-    
-    console.log("📊 Résultat UPDATE:", updateResult);
-    console.log("📊 Nombre de lignes mises à jour:", updateResult.length);
-    
-    if (updateResult.length > 0) {
-      console.log("✅ Profile mis à jour avec succès - Nouvelle valeur xp_total:", updateResult[0].xp_total);
-    } else {
-      console.warn("⚠️ ATTENTION - UPDATE n'a modifié aucune ligne");
-    }
-  } catch (error) {
-    console.error("❌ Erreur lors de la synchronisation du total_xp:", error);
-    console.error("Stack:", error.stack);
-  }
-}
-
 export async function getReviews(req, res) {
   try {
     const reviews = await sql`SELECT * FROM reviews ORDER BY created_at DESC`;

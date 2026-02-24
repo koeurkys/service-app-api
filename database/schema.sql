@@ -14,6 +14,10 @@ export async function initDB() {
       -- ===================================
 
       -- Drop existing objects (if they exist)
+      DROP TABLE IF EXISTS boost_purchases CASCADE;
+      DROP TABLE IF EXISTS active_boosts CASCADE;
+      DROP TABLE IF EXISTS user_boost_inventory CASCADE;
+      DROP TABLE IF EXISTS boosts CASCADE;
       DROP TABLE IF EXISTS user_challenges CASCADE;
       DROP TABLE IF EXISTS challenges CASCADE;
       DROP TABLE IF EXISTS user_badges CASCADE;
@@ -299,7 +303,89 @@ export async function initDB() {
       CREATE INDEX idx_user_challenges_completed_at ON user_challenges(completed_at DESC);
 
       -- ===================================
-      -- 12. MESSAGES TABLE
+      -- 12. BOOSTS TABLE
+      -- ===================================
+      CREATE TABLE boosts (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL UNIQUE,
+        description TEXT NOT NULL,
+        icon VARCHAR(500),
+        type VARCHAR(50) NOT NULL CHECK (type IN ('xp_multiplier', 'visibility', 'service_boost', 'rating_boost', 'premium_feature')),
+        value_multiplier DECIMAL(3, 2),
+        duration_hours INTEGER NOT NULL,
+        price_points INTEGER NOT NULL CHECK (price_points > 0),
+        max_active_per_user INTEGER DEFAULT 1,
+        applies_to VARCHAR(100) CHECK (applies_to IN ('all', 'services', 'bookings', 'challenges')),
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX idx_boosts_type ON boosts(type);
+      CREATE INDEX idx_boosts_is_active ON boosts(is_active);
+
+      -- Insert default boosts
+      INSERT INTO boosts (name, description, icon, type, value_multiplier, duration_hours, price_points, max_active_per_user, applies_to) VALUES
+        ('XP Double', 'Gagnez 2x plus d''XP pendant 12 heures', '⚡', 'xp_multiplier', 2.0, 12, 50, 1, 'all'),
+        ('Super XP', 'Gagnez 3x plus d''XP pendant 24 heures', '✨', 'xp_multiplier', 3.0, 24, 100, 1, 'all'),
+        ('Visibilité Max', 'Augmentez la visibilité de vos services de 50%', '👁️', 'visibility', 1.5, 72, 75, 1, 'services'),
+        ('Service Premium', 'Mettez en avant vos services', '💎', 'service_boost', 1.0, 168, 150, 5, 'services'),
+        ('Note Boost', 'Augmentez votre rating de 0.5 étoile temporairement', '⭐', 'rating_boost', 0.5, 168, 125, 1, 'all');
+
+      -- ===================================
+      -- 13. USER_BOOST_INVENTORY TABLE
+      -- ===================================
+      CREATE TABLE user_boost_inventory (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        boost_id INTEGER NOT NULL REFERENCES boosts(id) ON DELETE CASCADE,
+        quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, boost_id)
+      );
+
+      CREATE INDEX idx_user_boost_inventory_user_id ON user_boost_inventory(user_id);
+      CREATE INDEX idx_user_boost_inventory_boost_id ON user_boost_inventory(boost_id);
+
+      -- ===================================
+      -- 14. ACTIVE_BOOSTS TABLE
+      -- ===================================
+      CREATE TABLE active_boosts (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        boost_id INTEGER NOT NULL REFERENCES boosts(id) ON DELETE CASCADE,
+        activated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP NOT NULL,
+        is_active BOOLEAN DEFAULT TRUE,
+        UNIQUE(user_id, boost_id, activated_at)
+      );
+
+      CREATE INDEX idx_active_boosts_user_id ON active_boosts(user_id);
+      CREATE INDEX idx_active_boosts_boost_id ON active_boosts(boost_id);
+      CREATE INDEX idx_active_boosts_expires_at ON active_boosts(expires_at);
+      CREATE INDEX idx_active_boosts_is_active ON active_boosts(is_active);
+
+      -- ===================================
+      -- 15. BOOST_PURCHASES TABLE
+      -- ===================================
+      CREATE TABLE boost_purchases (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        boost_id INTEGER NOT NULL REFERENCES boosts(id) ON DELETE CASCADE,
+        quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
+        total_price_points INTEGER NOT NULL CHECK (total_price_points > 0),
+        purchase_type VARCHAR(50) CHECK (purchase_type IN ('shop', 'challenge_reward', 'promotion')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX idx_boost_purchases_user_id ON boost_purchases(user_id);
+      CREATE INDEX idx_boost_purchases_boost_id ON boost_purchases(boost_id);
+      CREATE INDEX idx_boost_purchases_created_at ON boost_purchases(created_at DESC);
+      CREATE INDEX idx_boost_purchases_purchase_type ON boost_purchases(purchase_type);
+
+      -- ===================================
+      -- 16. MESSAGES TABLE
       -- ===================================
       CREATE TABLE messages (
         id SERIAL PRIMARY KEY,
@@ -317,7 +403,7 @@ export async function initDB() {
       CREATE INDEX idx_messages_is_read ON messages(is_read);
 
       -- ===================================
-      -- 13. NOTIFICATIONS TABLE
+      -- 17. NOTIFICATIONS TABLE
       -- ===================================
       CREATE TABLE notifications (
         id SERIAL PRIMARY KEY,
@@ -342,6 +428,60 @@ export async function initDB() {
       -- ===================================
       -- STORED PROCEDURES / FUNCTIONS
       -- ===================================
+
+      CREATE OR REPLACE FUNCTION activate_boost(p_user_id INTEGER, p_boost_id INTEGER)
+      RETURNS TABLE(success BOOLEAN, message TEXT) AS $$
+      DECLARE
+        v_boost RECORD;
+        v_quantity INTEGER;
+        v_active_count INTEGER;
+      BEGIN
+        -- Vérifier que le boost existe
+        SELECT * INTO v_boost FROM boosts WHERE id = p_boost_id;
+        IF v_boost IS NULL THEN
+          RETURN QUERY SELECT FALSE, 'Boost not found';
+          RETURN;
+        END IF;
+
+        -- Vérifier que l'utilisateur a ce boost
+        SELECT quantity INTO v_quantity FROM user_boost_inventory 
+        WHERE user_id = p_user_id AND boost_id = p_boost_id;
+        IF v_quantity IS NULL OR v_quantity < 1 THEN
+          RETURN QUERY SELECT FALSE, 'Boost not available';
+          RETURN;
+        END IF;
+
+        -- Vérifier le nombre maximum de boosts actifs
+        SELECT COUNT(*) INTO v_active_count FROM active_boosts 
+        WHERE user_id = p_user_id AND boost_id = p_boost_id AND is_active = TRUE;
+        IF v_active_count >= v_boost.max_active_per_user THEN
+          RETURN QUERY SELECT FALSE, 'Max active boosts reached';
+          RETURN;
+        END IF;
+
+        -- Activer le boost
+        INSERT INTO active_boosts (user_id, boost_id, expires_at)
+        VALUES (p_user_id, p_boost_id, CURRENT_TIMESTAMP + (v_boost.duration_hours || ' hours')::INTERVAL);
+
+        -- Réduire la quantité
+        UPDATE user_boost_inventory 
+        SET quantity = quantity - 1
+        WHERE user_id = p_user_id AND boost_id = p_boost_id;
+
+        RETURN QUERY SELECT TRUE, 'Boost activated successfully';
+      END;
+      $$ LANGUAGE plpgsql;
+
+      CREATE OR REPLACE FUNCTION deactivate_boost(p_user_id INTEGER, p_boost_id INTEGER)
+      RETURNS TABLE(success BOOLEAN, message TEXT) AS $$
+      BEGIN
+        UPDATE active_boosts 
+        SET is_active = FALSE
+        WHERE user_id = p_user_id AND boost_id = p_boost_id AND is_active = TRUE;
+
+        RETURN QUERY SELECT TRUE, 'Boost deactivated';
+      END;
+      $$ LANGUAGE plpgsql;
 
       CREATE OR REPLACE FUNCTION add_user_xp(p_user_id INTEGER, p_xp INTEGER)
       RETURNS INTEGER AS $$

@@ -243,7 +243,7 @@ export async function claimChallengeReward(req, res) {
 
     // 2️⃣ Récupérer le défi avec ses conditions
     const [challenge] = await sql`
-      SELECT id, xp_reward, requirement_type, requirement_value, requirement_service_type, requirement_categories
+      SELECT id, xp_reward, difficulty, requirement_type, requirement_value, requirement_service_type, requirement_categories
       FROM challenges 
       WHERE id = ${challengeId}
     `;
@@ -307,11 +307,90 @@ export async function claimChallengeReward(req, res) {
     // Recalculer le niveau correctement
     const newLevel = calculateLevelFromXP(updatedProfile?.xp_total || 0);
 
+    // 7️⃣ Ajouter des boosts comme récompense basé sur la difficulté
+    let rewardedBoosts = [];
+    
+    try {
+      // Récupérer les boosts disponibles selon la difficulté
+      let boostQuery;
+      
+      if (challenge.difficulty === "facile") {
+        // Récompense: Petit boost aléatoire
+        boostQuery = await sql`
+          SELECT id, name FROM boosts 
+          WHERE type = 'xp_multiplier' AND value_multiplier = 2.0
+          LIMIT 1
+        `;
+      } else if (challenge.difficulty === "moyen") {
+        // Récompense: Boost moyen aléatoire
+        boostQuery = await sql`
+          SELECT id, name FROM boosts 
+          WHERE type IN ('xp_multiplier', 'visibility')
+          AND (type = 'xp_multiplier' AND value_multiplier = 2.0 
+               OR type = 'visibility')
+          ORDER BY RANDOM()
+          LIMIT 1
+        `;
+      } else if (challenge.difficulty === "difficile") {
+        // Récompense: Gros boost aléatoire
+        boostQuery = await sql`
+          SELECT id, name FROM boosts 
+          WHERE type IN ('xp_multiplier', 'service_boost', 'rating_boost')
+          AND (type = 'xp_multiplier' AND value_multiplier = 3.0 
+               OR type = 'service_boost' 
+               OR type = 'rating_boost')
+          ORDER BY RANDOM()
+          LIMIT 1
+        `;
+      }
+
+      if (boostQuery && boostQuery.length > 0) {
+        const boostId = boostQuery[0].id;
+        const boostName = boostQuery[0].name;
+
+        // Ajouter le boost à l'inventaire de l'utilisateur
+        const existingBoost = await sql`
+          SELECT * FROM user_boost_inventory 
+          WHERE user_id = ${user.id} AND boost_id = ${boostId}
+        `;
+
+        if (existingBoost.length > 0) {
+          await sql`
+            UPDATE user_boost_inventory 
+            SET quantity = quantity + 1, updated_at = CURRENT_TIMESTAMP
+            WHERE user_id = ${user.id} AND boost_id = ${boostId}
+          `;
+        } else {
+          await sql`
+            INSERT INTO user_boost_inventory (user_id, boost_id, quantity)
+            VALUES (${user.id}, ${boostId}, 1)
+          `;
+        }
+
+        // Ajouter à l'historique
+        await sql`
+          INSERT INTO boost_purchases (user_id, boost_id, quantity, total_price_points, purchase_type)
+          VALUES (${user.id}, ${boostId}, 1, 0, 'challenge_reward')
+        `;
+
+        rewardedBoosts.push({
+          id: boostId,
+          name: boostName,
+          difficulty: challenge.difficulty
+        });
+      }
+    } catch (boostError) {
+      console.warn("Error adding boost reward for challenge:", boostError);
+      // Continue sans l'erreur de boost
+    }
+
     return res.status(200).json({
       message: "Challenge reward claimed successfully",
       xpGained: xpReward,
       newTotalXP: updatedProfile?.xp_total || xpReward,
-      newLevel
+      newLevel,
+      boostReward: rewardedBoosts.length > 0 ? rewardedBoosts[0] : null,
+      boostRewards: rewardedBoosts
     });
 
   } catch (error) {

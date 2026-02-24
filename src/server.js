@@ -47,6 +47,7 @@ import userBadgesRoute from "./routes/userBadgesRoute.js";
 import categoryXpRoute from "./routes/categoryXpRoute.js";
 import challengesRoute from "./routes/challengesRoute.js";
 import userChallengesRoute from "./routes/userChallengesRoute.js";
+import boostsRoute from "./routes/boostsRoute.js";
 import uploadRoute from "./routes/uploadRoute.js";
 import adminRoute from "./routes/adminRoute.js";
 import notificationsRoute from "./routes/notificationsRoute.js";
@@ -191,6 +192,7 @@ app.use("/api/user-badges", userBadgesRoute);
 app.use("/api/category-xp", categoryXpRoute);
 app.use("/api/challenges", challengesRoute);
 app.use("/api/user-challenges", userChallengesRoute);
+app.use("/api/boosts", boostsRoute);
 app.use("/api/upload", uploadRoute);
 app.use("/api/admin", adminRoute);
 

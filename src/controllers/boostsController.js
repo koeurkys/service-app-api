@@ -18,7 +18,7 @@ export async function getAvailableBoosts(req, res) {
 // Obtenir les boosts dans l'inventaire de l'utilisateur
 export async function getUserBoostInventory(req, res) {
   try {
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ message: "Not authenticated" });
@@ -55,7 +55,7 @@ export async function getUserBoostInventory(req, res) {
 // Obtenir les boosts actuellement actifs de l'utilisateur
 export async function getUserActiveBoosts(req, res) {
   try {
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ message: "Not authenticated" });
@@ -93,7 +93,7 @@ export async function getUserActiveBoosts(req, res) {
 // Acheter un boost
 export async function purchaseBoost(req, res) {
   try {
-    const userId = req.user?.id;
+    const userId = req.userId;
     const { boostId, quantity = 1, paymentMethod } = req.body;
 
     if (!userId) {
@@ -162,7 +162,7 @@ export async function purchaseBoost(req, res) {
 // Activer un boost
 export async function activateBoost(req, res) {
   try {
-    const userId = req.user?.id;
+    const userId = req.userId;
     const { boostId } = req.body;
 
     if (!userId) {
@@ -216,7 +216,7 @@ export async function activateBoost(req, res) {
 // Désactiver un boost
 export async function deactivateBoost(req, res) {
   try {
-    const userId = req.user?.id;
+    const userId = req.userId;
     const { boostId } = req.body;
 
     if (!userId) {
@@ -244,7 +244,7 @@ export async function deactivateBoost(req, res) {
 // Obtenir les statistiques des boosts d'un utilisateur
 export async function getUserBoostStats(req, res) {
   try {
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ message: "Not authenticated" });
@@ -268,7 +268,7 @@ export async function getUserBoostStats(req, res) {
 // Vérifier les boosts actifs qui s'appliquent à un contexte spécifique
 export async function checkActiveBoostMultiplier(req, res) {
   try {
-    const userId = req.user?.id;
+    const userId = req.userId;
     const { context = "all" } = req.query; // 'all', 'services', 'bookings', 'challenges'
 
     if (!userId) {

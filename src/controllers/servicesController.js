@@ -206,7 +206,7 @@ export async function createService(req, res) {
     const serviceId = service[0].id;
     console.log("✅ Service created:", serviceId);
 
-    // 🔹 Si c'est une demande (type = "demande"), envoyer des notifications aux utilisateurs avec le badge de cette catégorie
+    // 🔹 Si c'est une demande (type = "demande"), envoyer des notifications aux vendeurs qui ont débloqué la catégorie
     if (type === "demande") {
       try {
         // Récupérer le nom de la catégorie
@@ -216,42 +216,31 @@ export async function createService(req, res) {
         const categoryName = categoryData[0]?.name;
         
         if (categoryName) {
-          // Chercher tous les badges dont le nom contient le nom de la catégorie (ou équivalent)
-          const badgesIds = await sql`
-            SELECT DISTINCT ub.user_id
-            FROM user_badges ub
-            JOIN badges b ON ub.badge_id = b.id
-            WHERE LOWER(b.category) = LOWER(${categoryName})
-               OR LOWER(b.name) LIKE LOWER(${'%' + categoryName + '%'})
+          // Créer les notifications pour TOUS les vendeurs avec la catégorie débloquée
+          await sql`
+            INSERT INTO notifications (
+              user_id,
+              sender_id,
+              service_id,
+              type,
+              title,
+              content,
+              action_url
+            )
+            SELECT 
+              cx.user_id,
+              ${user_id},
+              ${serviceId},
+              'service_demand',
+              'Nouvelle demande dans votre catégorie!',
+              ${`Un utilisateur recherche: ${title}`},
+              ${`/service/${serviceId}`}
+            FROM category_xp cx
+            WHERE cx.category_id = ${category_id} 
+              AND cx.completed_jobs > 0
           `;
 
-          console.log(`📢 Found ${badgesIds.length} users with ${categoryName} badge`);
-
-          // Créer une notification pour chaque utilisateur avec le badge
-          for (const badgeUser of badgesIds) {
-            await sql`
-              INSERT INTO notifications (
-                user_id,
-                sender_id,
-                service_id,
-                type,
-                title,
-                content,
-                action_url
-              )
-              VALUES (
-                ${badgeUser.user_id},
-                ${user_id},
-                ${serviceId},
-                'badge_match',
-                'Nouvelle demande dans votre domaine!',
-                ${`Un utilisateur recherche: ${title}`},
-                ${`/service/${serviceId}`}
-              )
-            `;
-          }
-
-          console.log(`✅ Notifications sent to ${badgesIds.length} users with ${categoryName} badge`);
+          console.log(`✅ Notifications sent to vendors with ${categoryName} category unlocked`);
         }
       } catch (notificationError) {
         console.error("⚠️ Error sending notifications:", notificationError);

@@ -32,9 +32,19 @@ export async function createBooking(req, res) {
       return res.status(400).json({ error: "service_id, booking_date et booking_time sont requis" });
     }
 
-    // Récupérer le service et ses infos
+    // Récupérer le service et ses infos (avec client et catégorie)
     const [service] = await sql`
-      SELECT id, user_id, price, status FROM services WHERE id = ${service_id}
+      SELECT 
+        s.id,
+        s.user_id,
+        s.price,
+        s.status,
+        s.title,
+        s.category_id,
+        c.name as category_name
+      FROM services s
+      JOIN categories c ON s.category_id = c.id
+      WHERE s.id = ${service_id}
     `;
 
     if (!service) {
@@ -48,6 +58,11 @@ export async function createBooking(req, res) {
     if (client_id === service.user_id) {
       return res.status(400).json({ error: "Impossible de réserver son propre service" });
     }
+
+    // Récupérer les infos du client
+    const [clientUser] = await sql`
+      SELECT name, avatar_url FROM users WHERE id = ${client_id}
+    `;
 
     const provider_id = service.user_id;
     const q = quantity || 1;
@@ -90,6 +105,36 @@ export async function createBooking(req, res) {
         'pending'
       )
       RETURNING *
+    `;
+
+    // Créer les notifications pour TOUS les vendeurs avec la catégorie débloquée
+    const notificationTitle = `Nouvelle demande de réservation`;
+    const notificationContent = `${clientUser?.name || 'Un client'} demande une réservation pour "${service.title}"`;
+    
+    // INSERT unique pour tous les vendeurs avec la catégorie débloquée
+    await sql`
+      INSERT INTO notifications (
+        user_id,
+        sender_id,
+        service_id,
+        type,
+        title,
+        content,
+        is_read,
+        created_at
+      )
+      SELECT 
+        cx.user_id,
+        ${client_id},
+        ${service_id},
+        'booking_request',
+        ${notificationTitle},
+        ${notificationContent},
+        FALSE,
+        CURRENT_TIMESTAMP
+      FROM category_xp cx
+      WHERE cx.category_id = ${service.category_id} 
+        AND cx.completed_jobs > 0
     `;
 
     res.status(201).json(booking[0]);

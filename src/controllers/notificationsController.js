@@ -20,10 +20,15 @@ export async function getNotifications(req, res) {
         n.*,
         u.name AS sender_name,
         u.avatar_url AS sender_avatar,
-        s.title AS service_title
+        s.title AS service_title,
+        s.category_id,
+        c.name AS category_name,
+        c.icon AS category_icon,
+        c.color AS category_color
       FROM notifications n
       LEFT JOIN users u ON n.sender_id = u.id
       LEFT JOIN services s ON n.service_id = s.id
+      LEFT JOIN categories c ON s.category_id = c.id
       WHERE n.user_id = ${userId}
       ORDER BY n.created_at DESC
     `;

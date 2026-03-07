@@ -1,8 +1,17 @@
 import { sql } from "../config/db.js";
 import { calculateLevelFromXP } from "../utils/levelCalculation.js";
+import { calculateReliabilityScore } from "../utils/reliabilityCalculation.js";
 export async function getProfileByUserId(req, res) {
   try {
     const { userId } = req.params;
+
+    // Calculer et mettre à jour la fiabilité
+    const reliabilityScore = await calculateReliabilityScore(userId);
+    await sql`
+      UPDATE profiles
+      SET reliability_score = ${reliabilityScore}
+      WHERE user_id = ${userId}
+    `;
 
     // Récupérer l'utilisateur avec les données du profil
     const [user] = await sql`
@@ -89,6 +98,14 @@ export async function getProfileByMe(req, res) {
     if (!user) {
       return res.status(404).json({ message: "Utilisateur introuvable" });
     }
+
+    // 1.5️⃣ Calculer et mettre à jour la fiabilité
+    const reliabilityScore = await calculateReliabilityScore(user.id);
+    await sql`
+      UPDATE profiles
+      SET reliability_score = ${reliabilityScore}
+      WHERE user_id = ${user.id}
+    `;
 
     // 2️⃣ stats globales
     const [stats] = await sql`

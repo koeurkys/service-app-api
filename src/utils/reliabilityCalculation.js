@@ -35,8 +35,8 @@ export async function calculateReliabilityScore(userId) {
     // 2️⃣ TAUX DE MISSIONS TERMINÉES (17%)
     const [completionData] = await sql`
       SELECT 
-        COUNT(*)::int FILTER (WHERE status = 'completed') AS completed,
-        COUNT(*)::int AS total
+        COUNT(*) FILTER (WHERE status = 'completed') AS completed,
+        COUNT(*) AS total
       FROM bookings
       WHERE provider_id = ${userId}
     `;
@@ -105,8 +105,8 @@ export async function calculateReliabilityScore(userId) {
     // 7️⃣ PAIEMENTS COMPLÉTÉS (6%)
     const [paymentsData] = await sql`
       SELECT 
-        COUNT(*)::int FILTER (WHERE status = 'completed') AS completed_payments,
-        COUNT(*)::int AS total_payments
+        COUNT(*) FILTER (WHERE status = 'completed') AS completed_payments,
+        COUNT(*) AS total_payments
       FROM bookings
       WHERE provider_id = ${userId} AND status = 'completed'
     `;

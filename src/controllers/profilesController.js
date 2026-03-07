@@ -235,7 +235,7 @@ export async function updateProfileByMe(req, res) {
       
       await sql`
         UPDATE profiles
-        SET custom_blocks = ${custom_blocks}::jsonb, updated_at = NOW()
+        SET custom_blocks = ${JSON.stringify(custom_blocks)}::jsonb, updated_at = NOW()
         WHERE user_id = ${user.id}
       `;
       

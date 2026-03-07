@@ -49,7 +49,7 @@ export async function calculateReliabilityScore(userId) {
     // 3️⃣ RAPIDITÉ D'ACCEPTATION BOOKING (8%)
     const [acceptanceSpeedData] = await sql`
       SELECT 
-        COALESCE(AVG(EXTRACT(EPOCH FROM (accepted_at - created_at)) / 60)::float, 0) AS avg_acceptance_minutes
+        COALESCE(AVG(EXTRACT(EPOCH FROM (updated_at - created_at)) / 60)::float, 0) AS avg_acceptance_minutes
       FROM bookings
       WHERE provider_id = ${userId} AND status IN ('accepted', 'completed')
     `;
@@ -121,11 +121,8 @@ export async function calculateReliabilityScore(userId) {
       SELECT 
         COALESCE(AVG(EXTRACT(EPOCH FROM (m.created_at - b.created_at)) / 3600)::float, 0) AS avg_response_hours
       FROM bookings b
-      LEFT JOIN messages m ON m.booking_id = b.id AND m.sender_id != b.provider_id
-      WHERE b.provider_id = ${userId}
-      AND m.id IS NOT NULL
-      AND m.created_at > b.created_at
-      LIMIT 100 -- Limiter pour performance
+      LEFT JOIN messages m ON m.booking_id = b.id AND m.sender_id != b.provider_id AND m.created_at > b.created_at
+      WHERE b.provider_id = ${userId} AND m.id IS NOT NULL
     `;
 
     const avgResponseHours = responseTimeData.avg_response_hours || 24;

@@ -13,6 +13,8 @@ import {
   getUnreadLikesNotifications,
   markLikesAsRead,
   markAllLikesAsReadForService,
+  markAllUserLikesAsRead,
+  markAllUserCommentsAsRead,
 } from "../controllers/commentsController.js";
 
 const router = express.Router();
@@ -55,5 +57,11 @@ router.post("/:commentId/likes/mark-read", markLikesAsRead);
 
 // ✅ Marquer tous les likes comme lus pour un service
 router.post("/service/:serviceId/likes/mark-read", markAllLikesAsReadForService);
+
+// ✅ Marquer TOUS les likes comme lus pour TOUS les services de l'utilisateur
+router.post("/likes/mark-all-read/:userId", markAllUserLikesAsRead);
+
+// ✅ Marquer TOUS les commentaires comme lus pour TOUS les services de l'utilisateur
+router.post("/mark-all-read/:userId", markAllUserCommentsAsRead);
 
 export default router;

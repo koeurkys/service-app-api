@@ -594,6 +594,69 @@ export async function markAllLikesAsReadForService(req, res) {
   }
 }
 
+// ✅ Marquer TOUS les likes comme lus pour TOUS les services de l'utilisateur
+export async function markAllUserLikesAsRead(req, res) {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId requis" });
+    }
+
+    // Marquer les likes comme lus pour tous les commentaires des services de l'utilisateur
+    const updated = await sql`
+      UPDATE comment_likes
+      SET is_read = TRUE
+      FROM service_comments sc
+      INNER JOIN services s ON sc.service_id = s.id
+      WHERE s.user_id = ${userId}
+      AND comment_likes.comment_id = sc.id
+      AND comment_likes.is_read = FALSE
+      RETURNING comment_likes.id
+    `;
+
+    console.log(`✅ ${updated.length} likes marqués comme lus pour l'utilisateur ${userId}`);
+    res.status(200).json({
+      message: "Tous les likes marqués comme lus",
+      updated_count: updated.length,
+    });
+  } catch (error) {
+    console.error("❌ Erreur marquage likes utilisateur:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+}
+
+// ✅ Marquer TOUS les commentaires comme lus pour TOUS les services de l'utilisateur
+export async function markAllUserCommentsAsRead(req, res) {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId requis" });
+    }
+
+    // Marquer les commentaires comme lus pour tous les services de l'utilisateur
+    const updated = await sql`
+      UPDATE service_comments
+      SET is_read = TRUE, updated_at = CURRENT_TIMESTAMP
+      FROM services s
+      WHERE s.id = service_comments.service_id
+      AND s.user_id = ${userId}
+      AND service_comments.is_read = FALSE
+      RETURNING service_comments.id
+    `;
+
+    console.log(`✅ ${updated.length} commentaires marqués comme lus pour l'utilisateur ${userId}`);
+    res.status(200).json({
+      message: "Tous les commentaires marqués comme lus",
+      updated_count: updated.length,
+    });
+  } catch (error) {
+    console.error("❌ Erreur marquage commentaires utilisateur:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+}
+
 // ✅ Marquer un commentaire spécifique comme lu
 export async function markCommentAsRead(req, res) {
   try {

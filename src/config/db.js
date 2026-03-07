@@ -278,6 +278,42 @@ export async function initDB() {
     await sql`CREATE INDEX IF NOT EXISTS idx_messages_receiver_id ON messages(receiver_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at)`;
 
+    // =========================
+    // COMMENTS & COMMENT LIKES
+    // =========================
+    await sql`
+      CREATE TABLE IF NOT EXISTS service_comments (
+        id SERIAL PRIMARY KEY,
+        service_id INTEGER NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+        author_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        parent_comment_id INTEGER REFERENCES service_comments(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    await sql`CREATE INDEX IF NOT EXISTS idx_service_comments_service_id ON service_comments(service_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_service_comments_author_id ON service_comments(author_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_service_comments_parent_id ON service_comments(parent_comment_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_service_comments_created_at ON service_comments(created_at DESC)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_service_comments_is_read ON service_comments(is_read)`;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS comment_likes (
+        id SERIAL PRIMARY KEY,
+        comment_id INTEGER NOT NULL REFERENCES service_comments(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(comment_id, user_id)
+      )
+    `;
+
+    await sql`CREATE INDEX IF NOT EXISTS idx_comment_likes_comment_id ON comment_likes(comment_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_comment_likes_user_id ON comment_likes(user_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_comment_likes_created_at ON comment_likes(created_at DESC)`;
+
     console.log("✅ Database initialized successfully");
   } catch (error) {
     console.error("❌ Error initializing DB:", error.message || error);

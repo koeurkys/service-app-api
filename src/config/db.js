@@ -315,6 +315,15 @@ export async function initDB() {
     await sql`CREATE INDEX IF NOT EXISTS idx_comment_likes_user_id ON comment_likes(user_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_comment_likes_created_at ON comment_likes(created_at DESC)`;
 
+    // Migration: Add is_read column to comment_likes if it doesn't exist
+    await sql`
+      ALTER TABLE IF EXISTS comment_likes 
+      ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE
+    `;
+
+    // Create index on is_read for comment_likes
+    await sql`CREATE INDEX IF NOT EXISTS idx_comment_likes_is_read ON comment_likes(is_read)`;
+
     console.log("✅ Database initialized successfully");
   } catch (error) {
     console.error("❌ Error initializing DB:", error.message || error);

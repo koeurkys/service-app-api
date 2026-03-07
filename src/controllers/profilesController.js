@@ -206,6 +206,88 @@ export async function getCategoryXpByMe(req, res) {
   }
 }
 
+export async function updateProfileByMe(req, res) {
+  try {
+    const clerkId = req.clerkUserId;
+    const { custom_blocks } = req.body;
+
+    if (!clerkId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Récupérer l'utilisateur
+    const [user] = await sql`
+      SELECT id
+      FROM users
+      WHERE clerk_id = ${clerkId}
+    `;
+
+    if (!user) {
+      return res.status(404).json({ message: "Utilisateur introuvable" });
+    }
+
+    // Mettre à jour custom_blocks dans le profil
+    if (custom_blocks !== undefined) {
+      await sql`
+        UPDATE profiles
+        SET custom_blocks = ${JSON.stringify(custom_blocks)}, updated_at = NOW()
+        WHERE user_id = ${user.id}
+      `;
+    }
+
+    // Récupérer le profil mis à jour
+    const [updatedProfile] = await sql`
+      SELECT
+        u.id,
+        u.name,
+        u.email,
+        u.avatar_url,
+        u.role,
+        u.clerk_id,
+        p.xp_total,
+        p.rating_avg,
+        p.level,
+        p.certified,
+        p.bio,
+        p.reliability_score,
+        p.custom_blocks,
+        p.total_services_completed,
+        p.created_at
+      FROM users u
+      LEFT JOIN profiles p ON p.user_id = u.id
+      WHERE u.id = ${user.id}
+    `;
+
+    // Récupérer les services
+    const services = await sql`
+      SELECT
+        s.id,
+        s.title,
+        c.name AS category,
+        s.price,
+        s.unit_type,
+        s.average_rating::float AS rating,
+        s.total_bookings AS reviews_count,
+        s.status,
+        s.created_at,
+        s.image_url
+      FROM services s
+      JOIN categories c ON c.id = s.category_id
+      WHERE s.user_id = ${user.id}
+      ORDER BY s.created_at DESC
+    `;
+
+    res.json({
+      ...updatedProfile,
+      services,
+      custom_blocks: custom_blocks || [],
+    });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    res.status(500).json({ message: "Erreur serveur", error: error.message });
+  }
+}
+
 export async function getCategoryXpByUserId(req, res) {
   try {
     const { userId } = req.params;

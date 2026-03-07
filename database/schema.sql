@@ -94,6 +94,7 @@ export async function initDB() {
         total_services_published INTEGER DEFAULT 0,
         bio TEXT,
         certifications TEXT,
+        custom_blocks JSONB DEFAULT '[]'::jsonb,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -102,6 +103,7 @@ export async function initDB() {
       CREATE INDEX idx_profiles_xp_total ON profiles(xp_total);
       CREATE INDEX idx_profiles_rating_avg ON profiles(rating_avg);
       CREATE INDEX idx_profiles_certified ON profiles(certified);
+      CREATE INDEX idx_profiles_custom_blocks ON profiles USING GIN (custom_blocks);
 
       -- ===================================
       -- 4. SERVICES TABLE

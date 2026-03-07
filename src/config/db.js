@@ -305,6 +305,7 @@ export async function initDB() {
         id SERIAL PRIMARY KEY,
         comment_id INTEGER NOT NULL REFERENCES service_comments(id) ON DELETE CASCADE,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        is_read BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(comment_id, user_id)
       )

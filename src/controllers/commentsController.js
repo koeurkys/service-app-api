@@ -308,3 +308,155 @@ export async function getServiceCommentsStats(req, res) {
     res.status(500).json({ message: "Erreur serveur" });
   }
 }
+
+// ✅ Obtenir les nouveaux commentaires non lus pour les services de l'utilisateur
+export async function getUnreadCommentsNotifications(req, res) {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId requis" });
+    }
+
+    // Récupérer tous les serviceIds de l'utilisateur
+    const userServices = await sql`SELECT id FROM services WHERE user_id = ${userId}`;
+    
+    if (userServices.length === 0) {
+      return res.status(200).json({ notifications: [], total_unread: 0 });
+    }
+
+    const serviceIds = userServices.map(s => s.id);
+
+    // Récupérer les commentaires non lus groupés par service
+    const unreadComments = await sql`
+      SELECT 
+        s.id as service_id,
+        s.title as service_title,
+        COUNT(*) as unread_count,
+        ARRAY_AGG(
+          JSON_BUILD_OBJECT(
+            'id', sc.id,
+            'content', sc.content,
+            'author_name', u.name,
+            'created_at', sc.created_at
+          )
+          ORDER BY sc.created_at DESC
+        ) as comments
+      FROM service_comments sc
+      INNER JOIN services s ON sc.service_id = s.id
+      INNER JOIN users u ON sc.author_id = u.id
+      WHERE sc.service_id = ANY(${serviceIds}::INTEGER[])
+      AND sc.is_read = FALSE
+      AND sc.parent_comment_id IS NULL
+      GROUP BY s.id, s.title
+      ORDER BY s.id DESC
+    `;
+
+    // Formater les résultats avec aperçu des commentaires
+    const notifications = unreadComments.map(item => {
+      const previewsText = item.comments
+        .slice(0, 2) // Afficher max 2 commentaires en aperçu
+        .map(comment => {
+          const text = comment.content;
+          // Tronquer à 100 caractères si trop long
+          return text.length > 100 ? text.substring(0, 100) + "..." : text;
+        });
+
+      return {
+        service_id: item.service_id,
+        service_title: item.service_title,
+        unread_count: parseInt(item.unread_count),
+        comment_previews: previewsText,
+        all_comments: item.comments,
+      };
+    });
+
+    const totalUnread = notifications.reduce((sum, n) => sum + n.unread_count, 0);
+
+    console.log(`✅ ${totalUnread} commentaires non lus pour l'utilisateur ${userId}`);
+    res.status(200).json({
+      notifications,
+      total_unread: totalUnread,
+    });
+  } catch (error) {
+    console.error("❌ Erreur récupération notifications:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+}
+
+// ✅ Marquer les commentaires d'un service comme lus
+export async function markCommentsAsRead(req, res) {
+  try {
+    const { serviceId } = req.params;
+    const { userId } = req.body;
+
+    if (!serviceId || !userId) {
+      return res.status(400).json({ message: "serviceId et userId requis" });
+    }
+
+    // Vérifier que l'utilisateur est le propriétaire du service
+    const service = await sql`SELECT user_id FROM services WHERE id = ${serviceId}`;
+    if (service.length === 0 || service[0].user_id !== userId) {
+      return res.status(403).json({ message: "Non autorisé" });
+    }
+
+    // Marquer tous les commentaires du service comme lus
+    const updated = await sql`
+      UPDATE service_comments
+      SET is_read = TRUE, updated_at = CURRENT_TIMESTAMP
+      WHERE service_id = ${serviceId} AND is_read = FALSE
+      RETURNING id
+    `;
+
+    console.log(`✅ ${updated.length} commentaires marqués comme lus`);
+    res.status(200).json({
+      message: "Commentaires marqués comme lus",
+      updated_count: updated.length,
+    });
+  } catch (error) {
+    console.error("❌ Erreur marquage commentaires:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+}
+
+// ✅ Marquer un commentaire spécifique comme lu
+export async function markCommentAsRead(req, res) {
+  try {
+    const { commentId } = req.params;
+    const { userId } = req.body;
+
+    if (!commentId || !userId) {
+      return res.status(400).json({ message: "commentId et userId requis" });
+    }
+
+    // Récupérer le commentaire et vérifier que l'utilisateur est le propriétaire du service
+    const comment = await sql`
+      SELECT sc.id, s.user_id
+      FROM service_comments sc
+      INNER JOIN services s ON sc.service_id = s.id
+      WHERE sc.id = ${commentId}
+    `;
+
+    if (comment.length === 0) {
+      return res.status(404).json({ message: "Commentaire non trouvé" });
+    }
+
+    if (comment[0].user_id !== userId) {
+      return res.status(403).json({ message: "Non autorisé" });
+    }
+
+    // Marquer le commentaire comme lu
+    const updated = await sql`
+      UPDATE service_comments
+      SET is_read = TRUE, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${commentId}
+      RETURNING id
+    `;
+
+    console.log(`✅ Commentaire ${commentId} marqué comme lu`);
+    res.status(200).json({ message: "Commentaire marqué comme lu" });
+  } catch (error) {
+    console.error("❌ Erreur marquage commentaire:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+}

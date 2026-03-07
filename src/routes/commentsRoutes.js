@@ -7,6 +7,9 @@ import {
   checkCommentLike,
   updateComment,
   getServiceCommentsStats,
+  getUnreadCommentsNotifications,
+  markCommentsAsRead,
+  markCommentAsRead,
 } from "../controllers/commentsController.js";
 
 const router = express.Router();
@@ -31,5 +34,14 @@ router.post("/:commentId/like", toggleCommentLike);
 
 // ✅ Vérifier si l'utilisateur a liké un commentaire
 router.get("/:commentId/like/check", checkCommentLike);
+
+// ✅ Obtenir les notifications de commentaires non lus pour l'utilisateur
+router.get("/notifications/unread/:userId", getUnreadCommentsNotifications);
+
+// ✅ Marquer tous les commentaires d'un service comme lus
+router.post("/service/:serviceId/mark-read", markCommentsAsRead);
+
+// ✅ Marquer un commentaire spécifique comme lu
+router.post("/:commentId/mark-read", markCommentAsRead);
 
 export default router;

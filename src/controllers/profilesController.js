@@ -228,11 +228,18 @@ export async function updateProfileByMe(req, res) {
 
     // Mettre à jour custom_blocks dans le profil
     if (custom_blocks !== undefined) {
+      console.log("[updateProfileByMe] Saving custom_blocks:", {
+        count: custom_blocks.length,
+        blocks: custom_blocks,
+      });
+      
       await sql`
         UPDATE profiles
-        SET custom_blocks = ${JSON.stringify(custom_blocks)}, updated_at = NOW()
+        SET custom_blocks = ${custom_blocks}::jsonb, updated_at = NOW()
         WHERE user_id = ${user.id}
       `;
+      
+      console.log("[updateProfileByMe] custom_blocks saved successfully");
     }
 
     // Récupérer le profil mis à jour
@@ -280,7 +287,7 @@ export async function updateProfileByMe(req, res) {
     res.json({
       ...updatedProfile,
       services,
-      custom_blocks: custom_blocks || [],
+      custom_blocks: updatedProfile.custom_blocks || custom_blocks || [],
     });
   } catch (error) {
     console.error("Error updating profile:", error);

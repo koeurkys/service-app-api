@@ -28,7 +28,8 @@ export async function getProfileByUserId(req, res) {
         p.level,
         p.certified,
         p.bio,
-        p.reliability_score
+        p.reliability_score,
+        p.custom_blocks
       FROM users u
       LEFT JOIN profiles p ON p.user_id = u.id
       WHERE u.id = ${userId}

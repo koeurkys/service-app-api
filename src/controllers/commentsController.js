@@ -1,4 +1,5 @@
 import { sql } from "../config/db.js";
+import { io } from "../server.js";
 
 // ✅ Obtenir tous les commentaires d'un service (avec réponses imbriquées)
 export async function getServiceComments(req, res) {
@@ -121,6 +122,20 @@ export async function createComment(req, res) {
       LEFT JOIN profiles p ON u.id = p.user_id
       WHERE sc.id = ${comment[0].id}
     `;
+
+    // 📢 Émettre un event Socket.IO au propriétaire du service
+    const serviceOwner = await sql`SELECT user_id FROM services WHERE id = ${serviceId}`;
+    if (serviceOwner.length > 0) {
+      const ownerId = serviceOwner[0].user_id;
+      console.log(`📢 Émission event comment-${ownerId} pour nouveau commentaire`);
+      io.emit(`comment-${ownerId}`, {
+        commentId: fullComment[0].id,
+        serviceId,
+        authorName: fullComment[0].author_name,
+        content: fullComment[0].content.substring(0, 50) + "...",
+        createdAt: fullComment[0].created_at,
+      });
+    }
 
     console.log("✅ Commentaire créé:", fullComment[0]);
     res.status(201).json(fullComment[0]);

@@ -51,6 +51,7 @@ import boostsRoute from "./routes/boostsRoute.js";
 import uploadRoute from "./routes/uploadRoute.js";
 import adminRoute from "./routes/adminRoute.js";
 import notificationsRoute from "./routes/notificationsRoute.js";
+import commentsRoute from "./routes/commentsRoutes.js";
 
 console.log("9️⃣ [INIT] All routes imported");
 
@@ -195,6 +196,7 @@ app.use("/api/user-challenges", userChallengesRoute);
 app.use("/api/boosts", boostsRoute);
 app.use("/api/upload", uploadRoute);
 app.use("/api/admin", adminRoute);
+app.use("/api/comments", commentsRoute);
 
 console.log("✅ All routes configured successfully");
 

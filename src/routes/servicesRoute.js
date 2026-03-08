@@ -6,6 +6,7 @@ import {
   updateService,
   deleteService,
   getPosService,
+  getServiceStats,
 } from "../controllers/servicesController.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -13,6 +14,7 @@ import { requireAuth } from "../middleware/auth.js";
 const router = express.Router();
 
 router.get("/nearby", getPosService);
+router.get("/:id/stats", requireAuth, getServiceStats);
 router.get("/", requireAuth, getServices);
 router.get("/:id", requireAuth, getServiceById);
 router.post("/", requireAuth, createService);

@@ -350,3 +350,53 @@ export async function deleteService(req, res) {
     res.status(500).json({ message: "Internal server error" });
   }
 }
+
+/* =======================
+   GET SERVICE STATISTICS
+======================= */
+export async function getServiceStats(req, res) {
+  try {
+    const { id } = req.params;
+
+    // Vérifier que le service existe
+    const serviceCheck = await sql`
+      SELECT id FROM services WHERE id = ${id}
+    `;
+
+    if (serviceCheck.length === 0) {
+      return res.status(404).json({ message: "Service not found" });
+    }
+
+    // Récupérer les statistiques
+    const stats = await sql`
+      SELECT
+        COALESCE(COUNT(DISTINCT r.id), 0) as total_reviews,
+        COALESCE(AVG(r.rating), 0) as avg_rating,
+        COALESCE(COUNT(DISTINCT b.id), 0) as total_bookings,
+        COALESCE(SUM(b.quantity), 0) as total_quantity
+      FROM services s
+      LEFT JOIN reviews r ON r.service_id = s.id
+      LEFT JOIN bookings b ON b.service_id = s.id
+      WHERE s.id = ${id}
+    `;
+
+    // Données fictives pour les statistiques avancées (à implémenter vraiment dans la BD)
+    const data = stats[0] || {};
+
+    res.status(200).json({
+      total_clicks: Math.floor(Math.random() * 500),
+      avg_time_spent: Math.floor(Math.random() * 120),
+      total_reviews: parseInt(data.total_reviews) || 0,
+      avg_rating: parseFloat(data.avg_rating) || 0,
+      total_bookings: parseInt(data.total_bookings) || 0,
+      geographic_data: [
+        { location: "Polynésie française", clicks: Math.floor(Math.random() * 100) },
+        { location: "Île de Tahiti", clicks: Math.floor(Math.random() * 80) },
+        { location: "Bora Bora", clicks: Math.floor(Math.random() * 50) },
+      ],
+    });
+  } catch (error) {
+    console.error("Error getting service stats:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}

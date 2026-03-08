@@ -369,28 +369,31 @@ export async function getServiceStats(req, res) {
       return res.status(404).json({ message: "Service not found" });
     }
 
-    // Récupérer les statistiques
-    const stats = await sql`
+    // Récupérer les statistiques des avis
+    const reviewStats = await sql`
       SELECT
-        COALESCE(COUNT(DISTINCT r.id), 0) as total_reviews,
-        COALESCE(AVG(r.rating), 0) as avg_rating,
-        COALESCE(COUNT(DISTINCT b.id), 0) as total_bookings,
-        COALESCE(SUM(b.quantity), 0) as total_quantity
-      FROM services s
-      LEFT JOIN reviews r ON r.service_id = s.id
-      LEFT JOIN bookings b ON b.service_id = s.id
-      WHERE s.id = ${id}
+        COUNT(DISTINCT id) as total_reviews,
+        AVG(rating) as avg_rating
+      FROM reviews
+      WHERE service_id = ${id}
     `;
 
-    // Données fictives pour les statistiques avancées (à implémenter vraiment dans la BD)
-    const data = stats[0] || {};
+    // Récupérer le nombre de réservations
+    const bookingStats = await sql`
+      SELECT COUNT(DISTINCT id) as total_bookings
+      FROM bookings
+      WHERE service_id = ${id}
+    `;
+
+    const reviews = reviewStats[0] || { total_reviews: 0, avg_rating: 0 };
+    const bookings = bookingStats[0] || { total_bookings: 0 };
 
     const response = {
       total_clicks: Math.floor(Math.random() * 500),
       avg_time_spent: Math.floor(Math.random() * 120),
-      total_reviews: parseInt(data.total_reviews) || 0,
-      avg_rating: parseFloat(data.avg_rating) || 0,
-      total_bookings: parseInt(data.total_bookings) || 0,
+      total_reviews: parseInt(reviews.total_reviews) || 0,
+      avg_rating: parseFloat(reviews.avg_rating) || 0,
+      total_bookings: parseInt(bookings.total_bookings) || 0,
       geographic_data: [
         { location: "Polynésie française", clicks: Math.floor(Math.random() * 100) },
         { location: "Île de Tahiti", clicks: Math.floor(Math.random() * 80) },
@@ -398,7 +401,7 @@ export async function getServiceStats(req, res) {
       ],
     };
 
-    console.log("✅ Stats retrieved successfully for service:", id);
+    console.log("✅ Stats retrieved successfully for service:", id, response);
     res.status(200).json(response);
   } catch (error) {
     console.error("❌ Error getting service stats:", {

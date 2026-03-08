@@ -116,6 +116,7 @@ export async function initDB() {
         category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         unit_type VARCHAR(50),
+        image_url VARCHAR(500),
         latitude DECIMAL(10, 8),
         longitude DECIMAL(11, 8),
         address VARCHAR(255),

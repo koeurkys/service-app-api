@@ -416,7 +416,7 @@ export async function recordServiceClick(req, res) {
   try {
     const { id } = req.params;
     const { latitude, longitude, commune } = req.body;
-    const userId = req.userId || null; // Peut être null si utilisateur non authentifié
+    const userId = req.userId || null;
 
     console.log("📍 [recordServiceClick] Recording click for service:", id, {
       latitude,
@@ -434,22 +434,47 @@ export async function recordServiceClick(req, res) {
       return res.status(404).json({ message: "Service not found" });
     }
 
-    // Déterminer l'île à partir des coordonnées
+    // Déterminer l'île à partir des coordonnées (logique JavaScript pour éviter les bugs SQL)
     let island = "Polynésie Française";
     if (latitude && longitude) {
-      // Utiliser la fonction SQL pour déterminer l'île
-      const islandResult = await sql`
-        SELECT get_polynesian_island(${latitude}::DECIMAL, ${longitude}::DECIMAL) as island
-      `;
-      if (islandResult[0]) {
-        island = islandResult[0].island;
+      // Mappage manuel des coordonnées aux îles
+      const lat = parseFloat(latitude);
+      const lng = parseFloat(longitude);
+      
+      // Îles de la Société (Windward Islands)
+      if (lat >= -17.6 && lat <= -17.4 && lng >= -149.6 && lng <= -149.3) {
+        island = "Tahiti";
+      }
+      // Moorea
+      else if (lat >= -17.5 && lat <= -17.4 && lng >= -149.9 && lng <= -149.7) {
+        island = "Moorea";
+      }
+      // Bora Bora
+      else if (lat >= -16.54 && lat <= -16.45 && lng >= -151.78 && lng <= -151.70) {
+        island = "Bora Bora";
+      }
+      // Raiatea
+      else if (lat >= -16.3 && lat <= -16.1 && lng >= -151.5 && lng <= -151.2) {
+        island = "Raiatea";
+      }
+      // Rangiroa
+      else if (lat >= -15.1 && lat <= -14.9 && lng >= -147.7 && lng <= -147.4) {
+        island = "Rangiroa";
+      }
+      // Hiva Oa
+      else if (lat >= -9.8 && lat <= -9.6 && lng >= -139.1 && lng <= -138.8) {
+        island = "Hiva Oa";
+      }
+      // Fatu Hiva
+      else if (lat >= -10.35 && lat <= -10.15 && lng >= -138.6 && lng <= -138.3) {
+        island = "Fatu Hiva";
       }
     }
 
     // Enregistrer le clic
     const result = await sql`
       INSERT INTO service_clicks (service_id, user_id, latitude, longitude, island, commune)
-      VALUES (${id}, ${userId}, ${latitude}, ${longitude}, ${island}, ${commune})
+      VALUES (${id}, ${userId}, ${latitude || null}, ${longitude || null}, ${island}, ${commune || "Non spécifiée"})
       RETURNING id
     `;
 
@@ -458,12 +483,13 @@ export async function recordServiceClick(req, res) {
       success: true,
       click_id: result[0].id,
       island: island,
-      commune: commune
+      commune: commune || "Non spécifiée"
     });
   } catch (error) {
     console.error("❌ Error recording service click:", {
       message: error.message,
-      stack: error.stack
+      stack: error.stack,
+      code: error.code
     });
     res.status(500).json({ message: "Internal server error", error: error.message });
   }

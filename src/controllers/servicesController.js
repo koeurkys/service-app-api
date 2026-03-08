@@ -357,6 +357,7 @@ export async function deleteService(req, res) {
 export async function getServiceStats(req, res) {
   try {
     const { id } = req.params;
+    console.log("📊 [getServiceStats] Getting stats for service:", id);
 
     // Vérifier que le service existe
     const serviceCheck = await sql`
@@ -364,6 +365,7 @@ export async function getServiceStats(req, res) {
     `;
 
     if (serviceCheck.length === 0) {
+      console.warn("⚠️ Service not found:", id);
       return res.status(404).json({ message: "Service not found" });
     }
 
@@ -383,7 +385,7 @@ export async function getServiceStats(req, res) {
     // Données fictives pour les statistiques avancées (à implémenter vraiment dans la BD)
     const data = stats[0] || {};
 
-    res.status(200).json({
+    const response = {
       total_clicks: Math.floor(Math.random() * 500),
       avg_time_spent: Math.floor(Math.random() * 120),
       total_reviews: parseInt(data.total_reviews) || 0,
@@ -394,9 +396,15 @@ export async function getServiceStats(req, res) {
         { location: "Île de Tahiti", clicks: Math.floor(Math.random() * 80) },
         { location: "Bora Bora", clicks: Math.floor(Math.random() * 50) },
       ],
-    });
+    };
+
+    console.log("✅ Stats retrieved successfully for service:", id);
+    res.status(200).json(response);
   } catch (error) {
-    console.error("Error getting service stats:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("❌ Error getting service stats:", {
+      message: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({ message: "Internal server error", error: error.message });
   }
 }

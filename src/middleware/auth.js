@@ -6,10 +6,22 @@ export const requireAuth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader?.startsWith("Bearer ")) {
+      console.warn("⚠️ No Bearer token in Authorization header");
       return res.status(401).json({ message: "No token provided" });
     }
 
     const token = authHeader.split(" ")[1];
+
+    if (!token || token.trim() === "") {
+      console.warn("⚠️ Token is empty");
+      return res.status(401).json({ message: "Token is empty" });
+    }
+
+    console.log("🔐 Token format check:", {
+      length: token.length,
+      dotCount: (token.match(/\./g) || []).length,
+      isValid: (token.match(/\./g) || []).length === 2
+    });
 
     // ✅ vérification officielle Clerk
     const payload = await verifyToken(token, {
@@ -35,7 +47,11 @@ export const requireAuth = async (req, res, next) => {
 
     next();
   } catch (err) {
-    console.error("❌ Auth error:", err);
-    return res.status(401).json({ message: "Unauthorized" });
+    console.error("❌ Auth error:", {
+      name: err.name,
+      message: err.message,
+      reason: err.reason
+    });
+    return res.status(401).json({ message: "Unauthorized", error: err.message });
   }
 };

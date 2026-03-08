@@ -411,3 +411,60 @@ export async function getServiceStats(req, res) {
     res.status(500).json({ message: "Internal server error", error: error.message });
   }
 }
+
+export async function recordServiceClick(req, res) {
+  try {
+    const { id } = req.params;
+    const { latitude, longitude, commune } = req.body;
+    const userId = req.userId || null; // Peut être null si utilisateur non authentifié
+
+    console.log("📍 [recordServiceClick] Recording click for service:", id, {
+      latitude,
+      longitude,
+      commune
+    });
+
+    // Vérifier que le service existe
+    const serviceCheck = await sql`
+      SELECT id FROM services WHERE id = ${id}
+    `;
+
+    if (serviceCheck.length === 0) {
+      console.warn("⚠️ Service not found:", id);
+      return res.status(404).json({ message: "Service not found" });
+    }
+
+    // Déterminer l'île à partir des coordonnées
+    let island = "Polynésie Française";
+    if (latitude && longitude) {
+      // Utiliser la fonction SQL pour déterminer l'île
+      const islandResult = await sql`
+        SELECT get_polynesian_island(${latitude}::DECIMAL, ${longitude}::DECIMAL) as island
+      `;
+      if (islandResult[0]) {
+        island = islandResult[0].island;
+      }
+    }
+
+    // Enregistrer le clic
+    const result = await sql`
+      INSERT INTO service_clicks (service_id, user_id, latitude, longitude, island, commune)
+      VALUES (${id}, ${userId}, ${latitude}, ${longitude}, ${island}, ${commune})
+      RETURNING id
+    `;
+
+    console.log("✅ Click recorded successfully for service:", id, "island:", island);
+    res.status(200).json({
+      success: true,
+      click_id: result[0].id,
+      island: island,
+      commune: commune
+    });
+  } catch (error) {
+    console.error("❌ Error recording service click:", {
+      message: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+}

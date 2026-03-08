@@ -566,6 +566,84 @@ export async function initDB() {
       EXECUTE FUNCTION tr_update_service_rating();
 
       -- ===================================
+      -- 18. SERVICE_CLICKS TABLE (Analytics & Geolocation)
+      -- ===================================
+      CREATE TABLE service_clicks (
+        id SERIAL PRIMARY KEY,
+        service_id INTEGER NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        latitude DECIMAL(10, 8),
+        longitude DECIMAL(11, 8),
+        island VARCHAR(100),
+        commune VARCHAR(100),
+        country VARCHAR(100) DEFAULT 'French Polynesia',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX idx_service_clicks_service_id ON service_clicks(service_id);
+      CREATE INDEX idx_service_clicks_user_id ON service_clicks(user_id);
+      CREATE INDEX idx_service_clicks_island ON service_clicks(island);
+      CREATE INDEX idx_service_clicks_commune ON service_clicks(commune);
+      CREATE INDEX idx_service_clicks_created_at ON service_clicks(created_at DESC);
+
+      -- Function to determine island from coordinates
+      CREATE OR REPLACE FUNCTION get_polynesian_island(lat DECIMAL, lng DECIMAL)
+      RETURNS VARCHAR AS $$
+      DECLARE
+        island VARCHAR;
+      BEGIN
+        -- Îles de la Société (Windward Islands)
+        IF lat BETWEEN -17.6 AND -17.4 AND lng BETWEEN -149.6 AND -149.3 THEN
+          island := 'Tahiti';
+        -- Moorea
+        ELSIF lat BETWEEN -17.5 AND -17.4 AND lng BETWEEN -149.9 AND -149.7 THEN
+          island := 'Moorea';
+        -- Îles de la Société (Leeward Islands)
+        -- Raiatea
+        ELSIF lat BETWEEN -16.3 AND -16.1 AND lng BETWEEN -151.5 AND -151.2 THEN
+          island := 'Raiatea';
+        -- Tahaa
+        ELSIF lat BETWEEN -16.6 AND -16.4 AND lng BETWEEN -151.5 AND -151.3 THEN
+          island := 'Tahaa';
+        -- Bora Bora
+        ELSIF lat BETWEEN -16.54 AND -16.45 AND lng BETWEEN -151.78 AND -151.70 THEN
+          island := 'Bora Bora';
+        -- Îles des Tuamotu
+        -- Rangiroa
+        ELSIF lat BETWEEN -15.1 AND -14.9 AND lng BETWEEN -147.7 AND -147.4 THEN
+          island := 'Rangiroa';
+        -- Fakarava
+        ELSIF lat BETWEEN -16.3 AND -16.1 AND lng BETWEEN -145.4 AND -145.1 THEN
+          island := 'Fakarava';
+        -- Îles Marquises
+        -- Nuku Hiva
+        ELSIF lat BETWEEN -8.9 AND -8.7 AND lng BETWEEN -140.3 AND -140.0 THEN
+          island := 'Nuku Hiva';
+        -- Hiva Oa
+        ELSIF lat BETWEEN -9.8 AND -9.6 AND lng BETWEEN -139.1 AND -138.8 THEN
+          island := 'Hiva Oa';
+        -- Fatu Hiva
+        ELSIF lat BETWEEN -10.35 AND -10.15 AND lng BETWEEN -138.6 AND -138.3 THEN
+          island := 'Fatu Hiva';
+        -- Îles Australes
+        -- Rurutu
+        ELSIF lat BETWEEN -22.74 AND -22.54 AND lng BETWEEN -151.4 AND -151.1 THEN
+          island := 'Rurutu';
+        -- Tubuai
+        ELSIF lat BETWEEN -23.37 AND -23.17 AND lng BETWEEN -149.6 AND -149.3 THEN
+          island := 'Tubuai';
+        -- Raivavae
+        ELSIF lat BETWEEN -23.88 AND -23.68 AND lng BETWEEN -147.7 AND -147.4 THEN
+          island := 'Raivavae';
+        -- Default
+        ELSE
+          island := 'Polynésie Française';
+        END IF;
+        RETURN island;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      -- ===================================
       -- VIEWS
       -- ===================================
       CREATE OR REPLACE VIEW v_top_rated_services AS

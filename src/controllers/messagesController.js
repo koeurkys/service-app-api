@@ -25,6 +25,7 @@ export const getConversation = async (req, res) => {
         m.receiver_id,
         m.content,
         m.is_read,
+        m.service_id,
         m.created_at,
         u.name as sender_name,
         u.avatar_url as sender_avatar
@@ -37,7 +38,25 @@ export const getConversation = async (req, res) => {
       ORDER BY m.created_at ASC
     `;
 
-    res.json(conversations);
+    // Récupérer le service_id le plus récent associé à cette conversation (s'il existe)
+    const [serviceData] = await sql`
+      SELECT service_id, title, image_url
+      FROM (
+        SELECT DISTINCT ON (m.service_id) m.service_id, s.title, s.image_url
+        FROM messages m
+        LEFT JOIN services s ON s.id = m.service_id
+        WHERE (m.sender_id = ${currentUserId} AND m.receiver_id = ${userId})
+           OR (m.sender_id = ${userId} AND m.receiver_id = ${currentUserId})
+        ORDER BY m.service_id, m.created_at DESC
+      ) t
+      WHERE service_id IS NOT NULL
+      LIMIT 1
+    `;
+
+    res.json({
+      messages: conversations,
+      service: serviceData || null
+    });
   } catch (err) {
     console.error("Erreur récupération conversation:", err);
     res.status(500).json({ error: "Erreur serveur" });
@@ -71,6 +90,20 @@ export const sendMessage = async (req, res) => {
 
     if (!receiver) {
       return res.status(404).json({ error: "Utilisateur récepteur non trouvé" });
+    }
+
+    // Si un service_id est fourni, mettre à jour tous les messages précédents de cette conversation
+    if (service_id) {
+      await sql`
+        UPDATE messages
+        SET service_id = ${service_id}
+        WHERE service_id IS NULL
+          AND (
+            (sender_id = ${sender_id} AND receiver_id = ${receiver_id})
+            OR
+            (sender_id = ${receiver_id} AND receiver_id = ${sender_id})
+          )
+      `;
     }
 
     const message = await sql`

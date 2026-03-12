@@ -47,7 +47,7 @@ export const getConversation = async (req, res) => {
 // Envoyer un message
 export const sendMessage = async (req, res) => {
   try {
-    const { receiver_id, content } = req.body;
+    const { receiver_id, content, service_id } = req.body;
 
     if (!receiver_id || !content) {
       return res.status(400).json({ error: "receiver_id et content sont requis" });
@@ -74,9 +74,9 @@ export const sendMessage = async (req, res) => {
     }
 
     const message = await sql`
-      INSERT INTO messages (sender_id, receiver_id, content)
-      VALUES (${sender_id}, ${receiver_id}, ${content})
-      RETURNING id, sender_id, receiver_id, content, is_read, created_at
+      INSERT INTO messages (sender_id, receiver_id, service_id, content)
+      VALUES (${sender_id}, ${receiver_id}, ${service_id || null}, ${content})
+      RETURNING id, sender_id, receiver_id, service_id, content, is_read, created_at
     `;
 
     // ✅ Émettre le nouveau message via Socket.IO au récepteur
@@ -149,6 +149,9 @@ export const getUserConversations = async (req, res) => {
         m.sender_id as last_message_sender_id,
         m.is_read as last_message_is_read,
         m.created_at as last_message_date,
+        m.service_id,
+        s.title as service_title,
+        s.image_url as service_image,
         (SELECT COUNT(*) FROM messages m2
          WHERE m2.sender_id = CASE 
                    WHEN m.sender_id = ${currentUserId} THEN m.receiver_id
@@ -161,6 +164,7 @@ export const getUserConversations = async (req, res) => {
                         WHEN m.sender_id = ${currentUserId} THEN m.receiver_id
                         ELSE m.sender_id
                       END
+      LEFT JOIN services s ON s.id = m.service_id
       WHERE (m.sender_id = ${currentUserId} OR m.receiver_id = ${currentUserId})
         AND m.created_at = (
           SELECT MAX(m2.created_at)

@@ -266,6 +266,7 @@ export async function initDB() {
         id SERIAL PRIMARY KEY,
         sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         receiver_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        service_id INTEGER REFERENCES services(id) ON DELETE SET NULL,
         content TEXT NOT NULL,
         is_read BOOLEAN DEFAULT FALSE,
         read_at TIMESTAMP,
@@ -276,6 +277,7 @@ export async function initDB() {
 
     await sql`CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_messages_receiver_id ON messages(receiver_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_messages_service_id ON messages(service_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at)`;
 
     // =========================
